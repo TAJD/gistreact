@@ -47,7 +47,10 @@ export function LandingPage() {
   return (
     <div className="landing-page">
       <header className="hero">
-        <h1>Gist Hoster</h1>
+        <div className="hero-header">
+          <img src="/logo.svg" alt="GistReact" className="logo" />
+          <h1>GistReact</h1>
+        </div>
         <p className="hero-description">
           Host and share React components directly from GitHub Gists
         </p>

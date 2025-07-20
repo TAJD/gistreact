@@ -1,0 +1,36 @@
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle with gradient -->
+  <circle cx="24" cy="24" r="24" fill="url(#gradient)"/>
+  
+  <!-- React atom symbol -->
+  <g transform="translate(24, 24)">
+    <!-- Electron paths -->
+    <ellipse cx="0" cy="0" rx="12" ry="4" stroke="#ffffff" stroke-width="1.5" fill="none" opacity="0.8"/>
+    <ellipse cx="0" cy="0" rx="12" ry="4" stroke="#ffffff" stroke-width="1.5" fill="none" transform="rotate(60)" opacity="0.8"/>
+    <ellipse cx="0" cy="0" rx="12" ry="4" stroke="#ffffff" stroke-width="1.5" fill="none" transform="rotate(120)" opacity="0.8"/>
+    
+    <!-- Central nucleus -->
+    <circle cx="0" cy="0" r="2" fill="#ffffff"/>
+    
+    <!-- Gist file icon overlay -->
+    <g transform="translate(-6, -8)">
+      <!-- File background -->
+      <rect x="0" y="0" width="12" height="16" rx="2" fill="rgba(255,255,255,0.9)"/>
+      <!-- File corner fold -->
+      <polygon points="8,0 12,4 8,4" fill="rgba(79,70,229,0.3)"/>
+      <!-- Code lines -->
+      <rect x="2" y="6" width="6" height="1" rx="0.5" fill="#4f46e5"/>
+      <rect x="2" y="8" width="4" height="1" rx="0.5" fill="#7c3aed"/>
+      <rect x="2" y="10" width="5" height="1" rx="0.5" fill="#ec4899"/>
+    </g>
+  </g>
+  
+  <!-- Gradient definition -->
+  <defs>
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4f46e5;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#7c3aed;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ec4899;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+</svg>

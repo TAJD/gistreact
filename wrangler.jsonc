@@ -6,7 +6,7 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "react-gist-hoster",
 	"main": "worker/index.ts",
-	"compatibility_date": "2025-07-19",
+	"compatibility_date": "2025-07-12",
 	"assets": {
 		"not_found_handling": "single-page-application"
 	},
@@ -20,9 +20,6 @@
 			"database_id": "08b5ea00-fdcd-4a2b-98b7-6aac3633c145"
 		}
 	],
-	"vars": {
-		"GITHUB_TOKEN": "your-github-token-here"
-	}
 	/**
 	 * Smart Placement
 	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement

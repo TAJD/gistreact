@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with the GistReact codebase.
 
 ## Development Commands
 
@@ -51,9 +51,9 @@ This is a React + TypeScript + Vite application configured to deploy as a Cloudf
 The frontend makes requests to `/api/` routes which are handled by the Cloudflare Worker. The worker exports a default handler that processes requests based on pathname.
 
 ### Development Workflow:
-1. Use `npm run dev` for local development with hot reload
+1. Use `pnpm dev` for local development with hot reload
 2. API routes are proxied to the worker during development
-3. Build and deploy using `npm run deploy` which builds the frontend and deploys to Cloudflare Workers
+3. Build and deploy using `pnpm deploy` which builds the frontend and deploys to Cloudflare Workers
 4. Static assets are served with SPA routing configured
 
 ### TypeScript Configuration:
@@ -62,9 +62,9 @@ Multiple tsconfig files for different contexts:
 - `tsconfig.node.json` - Node/build tools
 - `tsconfig.worker.json` - Cloudflare Worker
 
-## Gist Hoster System
+## GistReact System
 
-This application hosts React components from GitHub Gists with the following features:
+GistReact hosts React components from GitHub Gists with the following features:
 
 ### Setup Requirements:
 1. Create D1 database: `wrangler d1 create gist-analytics`
