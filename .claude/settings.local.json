@@ -3,7 +3,8 @@
     "allow": [
       "Bash(rm:*)",
       "Bash(del src/utils/sandbox.tsx)",
-      "Bash(pnpm add:*)"
+      "Bash(pnpm add:*)",
+      "Bash(git push:*)"
     ],
     "deny": []
   }

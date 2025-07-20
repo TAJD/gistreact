@@ -4,10 +4,11 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "react-gist-hoster",
+	"name": "gistreact",
 	"main": "worker/index.ts",
 	"compatibility_date": "2025-07-12",
 	"assets": {
+		"directory": "./dist",
 		"not_found_handling": "single-page-application"
 	},
 	"observability": {
