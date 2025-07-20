@@ -83,6 +83,7 @@ GistReact hosts React components from GitHub Gists with the following features:
 - Must export a default React component
 - Can only import from allow-listed libraries (React, lodash, date-fns, etc.)
 - External API calls are automatically proxied to avoid CORS
+- Full Tailwind CSS support with all utility classes available
 
 ### Security Features:
 - Sandboxed component execution
@@ -92,5 +93,4 @@ GistReact hosts React components from GitHub Gists with the following features:
 
 ### Analytics:
 - D1 database tracks view counts, errors, and timestamps
-- Cache API caches gist content for 1 hour
-- 404 responses cached for 5 minutes
+- No caching - always fetches fresh content from GitHub

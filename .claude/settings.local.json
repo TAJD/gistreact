@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(rm:*)",
-      "Bash(del src/utils/sandbox.tsx)"
+      "Bash(del src/utils/sandbox.tsx)",
+      "Bash(pnpm add:*)"
     ],
     "deny": []
   }

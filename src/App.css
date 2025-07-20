@@ -290,6 +290,95 @@ body {
   100% { transform: rotate(360deg); }
 }
 
+/* Gist URL Input Styles */
+.gist-url-input {
+  background: white;
+  padding: 3rem;
+  border-radius: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  margin-bottom: 4rem;
+  text-align: center;
+}
+
+.gist-url-input h3 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: #1a202c;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.gist-url-input p {
+  color: #64748b;
+  margin-bottom: 2rem;
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+.url-form {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.input-group {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.url-input {
+  flex: 1;
+  padding: 1rem 1.5rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 1rem;
+  background: #f8fafc;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+}
+
+.url-input:focus {
+  border-color: #4f46e5;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.url-input::placeholder {
+  color: #94a3b8;
+}
+
+.url-submit {
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+}
+
+.url-submit:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(79, 70, 229, 0.3);
+}
+
+.url-submit:active {
+  transform: translateY(0);
+}
+
+.url-error {
+  color: #e53e3e;
+  background: #fed7d7;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  border: 1px solid #feb2b2;
+}
+
 footer {
   background: linear-gradient(135deg, #1a202c, #2d3748);
   padding: 3rem 2rem;
@@ -299,10 +388,42 @@ footer {
   margin-top: auto;
 }
 
+.footer-content {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
 footer p {
   margin: 0;
   font-size: 1rem;
   opacity: 0.8;
+}
+
+.feedback-section {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #4a5568;
+}
+
+.feedback-section p {
+  margin: 0;
+  font-size: 1rem;
+  opacity: 0.9;
+  color: #e2e8f0;
+}
+
+.email-link {
+  color: #63b3ed;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  border-bottom: 1px solid transparent;
+}
+
+.email-link:hover {
+  color: #90cdf4;
+  border-bottom-color: #90cdf4;
+  text-shadow: 0 0 8px rgba(144, 205, 244, 0.3);
 }
 
 /* Gist Renderer Styles */
@@ -509,6 +630,15 @@ footer p {
   .main-content {
     padding: 3rem 1.5rem;
   }
+  
+  .input-group {
+    flex-direction: column;
+  }
+  
+  .url-submit {
+    align-self: center;
+    width: fit-content;
+  }
 }
 
 @media (max-width: 768px) {
@@ -536,6 +666,15 @@ footer p {
   
   .main-content {
     padding: 2rem 1rem;
+  }
+  
+  .gist-url-input {
+    padding: 2rem;
+    margin-bottom: 3rem;
+  }
+  
+  .gist-url-input h3 {
+    font-size: 1.5rem;
   }
   
   .how-it-works {

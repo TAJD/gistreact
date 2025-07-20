@@ -12,47 +12,32 @@ interface GistResponse {
 }
 
 async function fetchGistComponent(gistId: string, env: Env): Promise<{ content: string; filename: string } | null> {
-  const cache = caches.default;
-  const cacheKey = `https://cache.gist-hoster.internal/gist/${gistId}`;
+  const startTime = new Date();
+  const timestamp = startTime.toISOString();
   
-  // Check cache first
-  let cachedResponse = await cache.match(cacheKey);
-  if (cachedResponse) {
-    const cached = await cachedResponse.json() as { content: string; filename: string };
-    return cached;
-  }
-
+  console.log(`[${timestamp}] 🚀 Starting gist fetch for ID: ${gistId}`);
+  
   try {
     // Fetch from GitHub API
     const headers: Record<string, string> = {
-      'User-Agent': 'Mozilla/5.0 (compatible; Gist-Hoster/1.0)',
+      'User-Agent': 'Mozilla/5.0 (compatible; GistReact/1.0)',
       'Accept': 'application/vnd.github.v3+json'
     };
-    
-    // Remove token authentication for now
-    // if (env.GITHUB_TOKEN) {
-    //   headers['Authorization'] = `token ${env.GITHUB_TOKEN}`;
-    // }
     
     const response = await fetch(`https://api.github.com/gists/${gistId}`, { 
       headers,
       redirect: 'follow'
     });
     
-    console.log(`Fetching gist ${gistId}, status: ${response.status}`);
-    console.log(`Rate limit remaining: ${response.headers.get('x-ratelimit-remaining')}`);
-    console.log(`Rate limit reset: ${response.headers.get('x-ratelimit-reset')}`);
+    const fetchDuration = Date.now() - startTime.getTime();
+    console.log(`[${new Date().toISOString()}] 📡 GitHub API response for ${gistId}: ${response.status} (${fetchDuration}ms)`);
+    console.log(`[${new Date().toISOString()}] 📊 Rate limit remaining: ${response.headers.get('x-ratelimit-remaining')}`);
+    console.log(`[${new Date().toISOString()}] 🔄 Rate limit reset: ${new Date(parseInt(response.headers.get('x-ratelimit-reset') || '0') * 1000).toISOString()}`);
     
     if (!response.ok) {
-      console.log(`Gist fetch failed: ${response.status} - ${response.statusText}`);
+      console.log(`[${new Date().toISOString()}] ❌ Gist fetch failed for ${gistId}: ${response.status} - ${response.statusText}`);
       const errorText = await response.text();
-      console.log(`Error response: ${errorText}`);
-      if (response.status === 404) {
-        // Cache 404s for 5 minutes
-        const notFoundResponse = Response.json({ error: 'Gist not found' }, { status: 404 });
-        notFoundResponse.headers.set('Cache-Control', 'max-age=300');
-        await cache.put(cacheKey, notFoundResponse.clone());
-      }
+      console.log(`[${new Date().toISOString()}] 📝 Error details: ${errorText}`);
       return null;
     }
 
@@ -60,37 +45,39 @@ async function fetchGistComponent(gistId: string, env: Env): Promise<{ content: 
     
     // Find first .tsx file
     const files = Object.values(gist.files);
-    console.log(`Found files: ${files.map(f => f.filename).join(', ')}`);
+    console.log(`[${new Date().toISOString()}] 📁 Files in gist ${gistId}: [${files.map(f => f.filename).join(', ')}]`);
     
     const tsxFile = files.find(file => file.filename.endsWith('.tsx'));
     
     if (!tsxFile) {
-      console.log('No .tsx file found');
+      console.log(`[${new Date().toISOString()}] ⚠️  No .tsx file found in gist ${gistId}`);
       return null;
     }
     
-    console.log(`Found .tsx file: ${tsxFile.filename}`);
+    const totalDuration = Date.now() - startTime.getTime();
+    const contentLength = tsxFile.content.length;
+    console.log(`[${new Date().toISOString()}] ✅ Successfully loaded gist ${gistId}`);
+    console.log(`[${new Date().toISOString()}] 📄 File: ${tsxFile.filename} (${contentLength} characters)`);
+    console.log(`[${new Date().toISOString()}] ⏱️  Total processing time: ${totalDuration}ms`);
+    console.log(`[${new Date().toISOString()}] 🎯 Gist created: ${gist.created_at}, updated: ${gist.updated_at}`);
 
-    const result = {
+    return {
       content: tsxFile.content,
       filename: tsxFile.filename
     };
-
-    // Cache for 1 hour
-    const cacheResponse = Response.json(result);
-    cacheResponse.headers.set('Cache-Control', 'max-age=3600');
-    await cache.put(cacheKey, cacheResponse.clone());
-
-    return result;
   } catch (error) {
-    console.error('Error fetching gist:', error);
+    const totalDuration = Date.now() - startTime.getTime();
+    console.error(`[${new Date().toISOString()}] 💥 Fatal error fetching gist ${gistId} after ${totalDuration}ms:`, error);
     return null;
   }
 }
 
 async function updateAnalytics(env: Env, gistId: string, filename: string, success: boolean, error?: string) {
+  const timestamp = new Date().toISOString();
+  
   try {
     if (success) {
+      console.log(`[${timestamp}] 📈 Recording successful view for ${gistId}/${filename}`);
       await env.DB.prepare(`
         INSERT INTO gist_analytics (gist_id, filename, view_count)
         VALUES (?, ?, 1)
@@ -98,7 +85,9 @@ async function updateAnalytics(env: Env, gistId: string, filename: string, succe
           view_count = view_count + 1,
           last_accessed_at = CURRENT_TIMESTAMP
       `).bind(gistId, filename).run();
+      console.log(`[${timestamp}] ✅ Analytics updated successfully for ${gistId}/${filename}`);
     } else {
+      console.log(`[${timestamp}] 📉 Recording error for ${gistId}/${filename}: ${error}`);
       await env.DB.prepare(`
         INSERT INTO gist_analytics (gist_id, filename, view_count, error_count, last_error)
         VALUES (?, ?, 0, 1, ?)
@@ -107,9 +96,10 @@ async function updateAnalytics(env: Env, gistId: string, filename: string, succe
           last_error = ?,
           last_accessed_at = CURRENT_TIMESTAMP
       `).bind(gistId, filename, error, error).run();
+      console.log(`[${timestamp}] ⚠️  Error analytics updated for ${gistId}/${filename}`);
     }
   } catch (dbError) {
-    console.error('Database error:', dbError);
+    console.error(`[${timestamp}] 💥 Database error for ${gistId}/${filename}:`, dbError);
   }
 }
 
@@ -147,8 +137,14 @@ async function getPopularGists(env: Env, limit: number = 10) {
 
 export default {
   async fetch(request, env) {
+    const requestStart = new Date();
+    const timestamp = requestStart.toISOString();
     const url = new URL(request.url);
     const path = url.pathname;
+    const userAgent = request.headers.get('user-agent') || 'unknown';
+    const clientIP = request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || 'unknown';
+    
+    console.log(`[${timestamp}] 🌐 ${request.method} ${path} - IP: ${clientIP} - UA: ${userAgent.substring(0, 100)}`);
 
     // Proxy endpoint for external resources
     if (path.startsWith("/proxy")) {
@@ -199,14 +195,22 @@ export default {
     // Gist component endpoint
     const gistId = path.slice(1); // Remove leading slash
     if (gistId && gistId.length > 0 && !gistId.includes('/')) {
+      console.log(`[${new Date().toISOString()}] 🎯 Processing gist request: ${gistId}`);
+      
       const component = await fetchGistComponent(gistId, env);
       
       if (!component) {
+        console.log(`[${new Date().toISOString()}] 🚫 Gist ${gistId} not found or invalid`);
         await updateAnalytics(env, gistId, 'unknown', false, 'Gist not found or no .tsx file');
+        const duration = Date.now() - requestStart.getTime();
+        console.log(`[${new Date().toISOString()}] ⏱️  Request completed in ${duration}ms (404)`);
         return Response.json({ error: 'Gist not found or does not contain a .tsx file' }, { status: 404 });
       }
 
       await updateAnalytics(env, gistId, component.filename, true);
+      
+      const duration = Date.now() - requestStart.getTime();
+      console.log(`[${new Date().toISOString()}] 🎉 Successfully served gist ${gistId}/${component.filename} in ${duration}ms`);
       
       return Response.json({
         content: component.content,
