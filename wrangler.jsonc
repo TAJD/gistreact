@@ -7,10 +7,6 @@
 	"name": "react-gist-hoster",
 	"main": "worker/index.ts",
 	"compatibility_date": "2025-07-12",
-	"assets": {
-		"directory": "./dist/client",
-		"not_found_handling": "single-page-application"
-	},
 	"observability": {
 		"enabled": true
 	},
