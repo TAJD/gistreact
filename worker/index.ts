@@ -11,7 +11,7 @@ interface GistResponse {
   updated_at: string;
 }
 
-async function fetchGistComponent(gistId: string, env: Env): Promise<{ content: string; filename: string } | null> {
+async function fetchGistComponent(gistId: string, _env: Env): Promise<{ content: string; filename: string } | null> {
   const startTime = new Date();
   const timestamp = startTime.toISOString();
   

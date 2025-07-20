@@ -4,7 +4,8 @@
       "Bash(rm:*)",
       "Bash(del src/utils/sandbox.tsx)",
       "Bash(pnpm add:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(pnpm build:*)"
     ],
     "deny": []
   }
