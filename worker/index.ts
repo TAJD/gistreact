@@ -11,6 +11,7 @@ interface GistResponse {
   updated_at: string;
 }
 
+
 async function fetchGistComponent(gistId: string, _env: Env): Promise<{ content: string; filename: string } | null> {
   const startTime = new Date();
   const timestamp = startTime.toISOString();
@@ -145,6 +146,16 @@ export default {
     const clientIP = request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || 'unknown';
     
     console.log(`[${timestamp}] 🌐 ${request.method} ${path} - IP: ${clientIP} - UA: ${userAgent.substring(0, 100)}`);
+    
+    // Add no-cache headers for development
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    };
 
     // Proxy endpoint for external resources
     if (path.startsWith("/proxy")) {
@@ -181,12 +192,12 @@ export default {
     if (path.startsWith("/api/")) {
       if (path === "/api/recent") {
         const gists = await getRecentGists(env);
-        return Response.json(gists);
+        return Response.json(gists, { headers: corsHeaders });
       }
       
       if (path === "/api/popular") {
         const gists = await getPopularGists(env);
-        return Response.json(gists);
+        return Response.json(gists, { headers: corsHeaders });
       }
 
       return Response.json({ error: 'API endpoint not found' }, { status: 404 });
@@ -216,10 +227,12 @@ export default {
         content: component.content,
         filename: component.filename,
         gistId: gistId
+      }, {
+        headers: corsHeaders
       });
     }
 
-    // Fallback to static assets
-    return new Response(null, { status: 404 });
+    // Fallback to static assets  
+    return new Response('Not Found', { status: 404 });
   },
 } satisfies ExportedHandler<Env>;
