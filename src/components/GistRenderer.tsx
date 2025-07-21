@@ -141,15 +141,73 @@ export default function App() {
           files={files}
           customSetup={{
             dependencies: {
+              // Core React dependencies
               'lucide-react': 'latest',
               '@swc/helpers': 'latest',
-              // Add common shadcn dependencies
+              
+              // All Radix UI primitives (shadcn/ui components)
+              '@radix-ui/react-accordion': 'latest',
+              '@radix-ui/react-alert-dialog': 'latest',
+              '@radix-ui/react-aspect-ratio': 'latest',
+              '@radix-ui/react-avatar': 'latest',
+              '@radix-ui/react-checkbox': 'latest',
+              '@radix-ui/react-collapsible': 'latest',
+              '@radix-ui/react-context-menu': 'latest',
+              '@radix-ui/react-dialog': 'latest',
+              '@radix-ui/react-dropdown-menu': 'latest',
+              '@radix-ui/react-hover-card': 'latest',
+              '@radix-ui/react-label': 'latest',
+              '@radix-ui/react-menubar': 'latest',
+              '@radix-ui/react-navigation-menu': 'latest',
+              '@radix-ui/react-popover': 'latest',
+              '@radix-ui/react-progress': 'latest',
+              '@radix-ui/react-radio-group': 'latest',
+              '@radix-ui/react-scroll-area': 'latest',
+              '@radix-ui/react-select': 'latest',
+              '@radix-ui/react-separator': 'latest',
+              '@radix-ui/react-slider': 'latest',
               '@radix-ui/react-slot': 'latest',
+              '@radix-ui/react-switch': 'latest',
+              '@radix-ui/react-tabs': 'latest',
+              '@radix-ui/react-toast': 'latest',
+              '@radix-ui/react-toggle': 'latest',
+              '@radix-ui/react-toggle-group': 'latest',
+              '@radix-ui/react-tooltip': 'latest',
+              
+              // shadcn/ui utility libraries
               'class-variance-authority': 'latest',
               'clsx': 'latest',
               'tailwind-merge': 'latest',
+              
+              // Date handling
               'date-fns': 'latest',
-              'lodash': 'latest'
+              'react-day-picker': 'latest',
+              
+              // Form libraries
+              'react-hook-form': 'latest',
+              '@hookform/resolvers': 'latest',
+              'zod': 'latest',
+              
+              // Additional UI libraries
+              'input-otp': 'latest',
+              'embla-carousel-react': 'latest',
+              'react-resizable-panels': 'latest',
+              'vaul': 'latest',
+              'cmdk': 'latest',
+              'sonner': 'latest',
+              
+              // Chart libraries
+              'recharts': 'latest',
+              
+              // Utility libraries
+              'lodash': 'latest',
+              'nanoid': 'latest',
+              
+              // Animation
+              'framer-motion': 'latest',
+              
+              // Theme
+              'next-themes': 'latest'
             }
           }}
           options={{

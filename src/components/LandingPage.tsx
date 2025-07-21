@@ -143,12 +143,138 @@ export function LandingPage() {
       <main className="main-content">
         <section className="how-it-works">
           <h2>How it works</h2>
-          <ol>
-            <li>Create a GitHub Gist with a <code>.tsx</code> file</li>
-            <li>Copy the Gist ID from the URL</li>
-            <li>Visit <code>gistreact.verdient.co.uk/&lt;gist-id&gt;</code></li>
-            <li>Your component is live!</li>
-          </ol>
+          <div className="workflow-steps">
+            <div className="step">
+              <div className="step-number">1</div>
+              <div className="step-content">
+                <h3>🤖 Develop with Claude</h3>
+                <p>Go to <a href="https://claude.ai/code" target="_blank" rel="noopener noreferrer">Claude Code</a>, create a React artifact, and iterate on your component design</p>
+              </div>
+            </div>
+            
+            <div className="step">
+              <div className="step-number">2</div>
+              <div className="step-content">
+                <h3>📝 Create GitHub Gist</h3>
+                <p>Copy your component code and create a <a href="https://gist.github.com" target="_blank" rel="noopener noreferrer">GitHub Gist</a> with a <code>.tsx</code> file</p>
+              </div>
+            </div>
+            
+            <div className="step">
+              <div className="step-number">3</div>
+              <div className="step-content">
+                <h3>🔗 Get Gist URL</h3>
+                <p>Copy the Gist ID from your GitHub Gist URL (e.g., <code>abc123def456</code>)</p>
+              </div>
+            </div>
+            
+            <div className="step">
+              <div className="step-number">4</div>
+              <div className="step-content">
+                <h3>🚀 Host Long-term</h3>
+                <p>Paste the Gist URL below or visit <code>gistreact.verdient.co.uk/&lt;gist-id&gt;</code> to host your component permanently</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="workflow-benefits">
+            <h3>🎯 Perfect for:</h3>
+            <p>Rapid prototyping, component showcases, portfolio pieces, and client demos</p>
+          </div>
+        </section>
+
+        <section className="dependencies-section">
+          <details className="dependencies-details">
+            <summary>
+              <h2>📦 Available Dependencies</h2>
+              <p>Click to see all the libraries your components can use</p>
+            </summary>
+            
+            <div className="dependencies-content">
+              <div className="dependency-category">
+                <h3>🎨 UI Components (shadcn/ui)</h3>
+                <div className="dependency-grid">
+                  <code>@radix-ui/react-accordion</code>
+                  <code>@radix-ui/react-alert-dialog</code>
+                  <code>@radix-ui/react-aspect-ratio</code>
+                  <code>@radix-ui/react-avatar</code>
+                  <code>@radix-ui/react-checkbox</code>
+                  <code>@radix-ui/react-collapsible</code>
+                  <code>@radix-ui/react-context-menu</code>
+                  <code>@radix-ui/react-dialog</code>
+                  <code>@radix-ui/react-dropdown-menu</code>
+                  <code>@radix-ui/react-hover-card</code>
+                  <code>@radix-ui/react-label</code>
+                  <code>@radix-ui/react-menubar</code>
+                  <code>@radix-ui/react-navigation-menu</code>
+                  <code>@radix-ui/react-popover</code>
+                  <code>@radix-ui/react-progress</code>
+                  <code>@radix-ui/react-radio-group</code>
+                  <code>@radix-ui/react-scroll-area</code>
+                  <code>@radix-ui/react-select</code>
+                  <code>@radix-ui/react-separator</code>
+                  <code>@radix-ui/react-slider</code>
+                  <code>@radix-ui/react-slot</code>
+                  <code>@radix-ui/react-switch</code>
+                  <code>@radix-ui/react-tabs</code>
+                  <code>@radix-ui/react-toast</code>
+                  <code>@radix-ui/react-toggle</code>
+                  <code>@radix-ui/react-toggle-group</code>
+                  <code>@radix-ui/react-tooltip</code>
+                </div>
+              </div>
+
+              <div className="dependency-category">
+                <h3>🔧 Utilities</h3>
+                <div className="dependency-grid">
+                  <code>class-variance-authority</code>
+                  <code>clsx</code>
+                  <code>tailwind-merge</code>
+                  <code>lodash</code>
+                  <code>nanoid</code>
+                </div>
+              </div>
+
+              <div className="dependency-category">
+                <h3>📅 Date & Forms</h3>
+                <div className="dependency-grid">
+                  <code>date-fns</code>
+                  <code>react-day-picker</code>
+                  <code>react-hook-form</code>
+                  <code>@hookform/resolvers</code>
+                  <code>zod</code>
+                </div>
+              </div>
+
+              <div className="dependency-category">
+                <h3>✨ Enhanced UI</h3>
+                <div className="dependency-grid">
+                  <code>lucide-react</code>
+                  <code>input-otp</code>
+                  <code>embla-carousel-react</code>
+                  <code>react-resizable-panels</code>
+                  <code>vaul</code>
+                  <code>cmdk</code>
+                  <code>sonner</code>
+                  <code>framer-motion</code>
+                  <code>next-themes</code>
+                </div>
+              </div>
+
+              <div className="dependency-category">
+                <h3>📊 Charts</h3>
+                <div className="dependency-grid">
+                  <code>recharts</code>
+                </div>
+              </div>
+
+              <div className="features-note">
+                <p><strong>✅ All dependencies automatically available</strong> - No need to install or configure anything!</p>
+                <p><strong>🎨 Full Tailwind CSS support</strong> - All utility classes work out of the box</p>
+                <p><strong>🔄 Real-time rendering</strong> - Components update instantly as you modify your gists</p>
+              </div>
+            </div>
+          </details>
         </section>
 
         <GistUrlInput />

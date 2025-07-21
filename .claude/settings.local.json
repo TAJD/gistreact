@@ -11,7 +11,8 @@
       "Bash(npx wrangler:*)",
       "WebFetch(domain:sandpack.codesandbox.io)",
       "Bash(curl:*)",
-      "Bash(pnpm deploy:*)"
+      "Bash(pnpm deploy:*)",
+      "Bash(wrangler d1 create:*)"
     ],
     "deny": []
   }
