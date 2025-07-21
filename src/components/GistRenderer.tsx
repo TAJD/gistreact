@@ -5,10 +5,36 @@ interface GistResponse {
   content: string
   filename: string
   gistId: string
+  shareId?: string
+  isShared?: boolean
 }
 
 interface GistRendererProps {
   gistId: string
+}
+
+function ShareableLink({ shareId }: { shareId: string }) {
+  const shareUrl = `${window.location.origin}/${shareId}`
+  
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(shareUrl)
+  }
+  
+  return (
+    <div className="shareable-link">
+      <div className="share-info">
+        <span className="share-label">🔗 Shareable link:</span>
+        <code className="share-url">{shareUrl}</code>
+        <button 
+          onClick={copyToClipboard}
+          className="copy-btn"
+          title="Copy to clipboard"
+        >
+          📋
+        </button>
+      </div>
+    </div>
+  )
 }
 
 export function GistRenderer({ gistId }: GistRendererProps) {
@@ -107,13 +133,40 @@ export function GistRenderer({ gistId }: GistRendererProps) {
     )
   }
 
-  // Extract the component name from the gist content
-  const componentNameMatch = component.content.match(/export default (\w+)/);
-  const componentName = componentNameMatch ? componentNameMatch[1] : 'Component';
+  // Extract the component name from the gist content with multiple patterns
+  let componentName = 'Component';
+  
+  // Try different export patterns
+  const patterns = [
+    /export default (\w+)/,                    // export default ComponentName
+    /export default function (\w+)/,          // export default function ComponentName()
+    /const (\w+) = .*export default \1/s,     // const ComponentName = ... export default ComponentName
+    /function (\w+)\(.*\).*export default \1/s, // function ComponentName() ... export default ComponentName
+    /const (\w+) = \(/,                       // const ComponentName = (
+    /function (\w+)\(/                        // function ComponentName(
+  ];
+  
+  for (const pattern of patterns) {
+    const match = component.content.match(pattern);
+    if (match && match[1]) {
+      componentName = match[1];
+      break;
+    }
+  }
+  
+  console.log(`🔍 Component name detection:`, { componentName, filename: component.filename });
+  
+  // Check if the component has a default export, if not, add one
+  let processedContent = component.content;
+  
+  if (!component.content.includes('export default')) {
+    console.log(`⚠️  No default export found, adding one for component: ${componentName}`);
+    processedContent = `${component.content}\n\nexport default ${componentName};`;
+  }
   
   // Create files with proper import structure
   const files = {
-    [`${componentName}.tsx`]: component.content,
+    [`${componentName}.tsx`]: processedContent,
     'App.tsx': `import React from 'react';
 import ${componentName} from './${componentName}';
 
@@ -121,6 +174,9 @@ export default function App() {
   return <${componentName} />;
 }`
   }
+  
+  console.log(`📄 Processed content preview:`, processedContent.substring(0, 200) + '...');
+  console.log(`🔍 Has default export:`, processedContent.includes('export default'));
 
   console.log(`🎯 Detected component: ${componentName}`)
   console.log(`📄 Content length:`, component.content?.length)
@@ -135,6 +191,7 @@ export default function App() {
           <span className="gist-id">Gist: {gistId}</span>
         </div>
       </nav>
+      {component.shareId && <ShareableLink shareId={component.shareId} />}
       <div className="component-container">
         <Sandpack
           template="react-ts"

@@ -11,8 +11,101 @@ interface GistResponse {
   updated_at: string;
 }
 
+function generateShareId(): string {
+  // Generate a short random ID for sharing
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < 8; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
 
-async function fetchGistComponent(gistId: string, _env: Env): Promise<{ content: string; filename: string } | null> {
+async function storeGistForSharing(env: Env, gistId: string, filename: string, content: string, description: string): Promise<string> {
+  const timestamp = new Date().toISOString();
+  
+  try {
+    // Check if this gist is already stored
+    const existing = await env.DB.prepare(`
+      SELECT share_id FROM stored_gists 
+      WHERE original_gist_id = ? AND filename = ?
+    `).bind(gistId, filename).first();
+    
+    if (existing) {
+      console.log(`[${timestamp}] 🔗 Using existing share ID for ${gistId}/${filename}: ${existing.share_id}`);
+      return existing.share_id as string;
+    }
+    
+    // Generate new share ID
+    let shareId = generateShareId();
+    let attempts = 0;
+    
+    // Ensure unique share ID
+    while (attempts < 10) {
+      const collision = await env.DB.prepare(`
+        SELECT share_id FROM stored_gists WHERE share_id = ?
+      `).bind(shareId).first();
+      
+      if (!collision) break;
+      shareId = generateShareId();
+      attempts++;
+    }
+    
+    if (attempts >= 10) {
+      console.error(`[${timestamp}] 💥 Could not generate unique share ID after 10 attempts`);
+      throw new Error('Could not generate unique share ID');
+    }
+    
+    // Store the gist
+    await env.DB.prepare(`
+      INSERT INTO stored_gists (share_id, original_gist_id, filename, content, description)
+      VALUES (?, ?, ?, ?, ?)
+    `).bind(shareId, gistId, filename, content, description).run();
+    
+    console.log(`[${timestamp}] ✅ Stored gist ${gistId}/${filename} with share ID: ${shareId}`);
+    return shareId;
+  } catch (error) {
+    console.error(`[${timestamp}] 💥 Error storing gist for sharing:`, error);
+    throw error;
+  }
+}
+
+async function getStoredGist(env: Env, shareId: string): Promise<{content: string, filename: string, originalGistId: string} | null> {
+  const timestamp = new Date().toISOString();
+  
+  try {
+    const result = await env.DB.prepare(`
+      SELECT content, filename, original_gist_id
+      FROM stored_gists 
+      WHERE share_id = ?
+    `).bind(shareId).first();
+    
+    if (!result) {
+      console.log(`[${timestamp}] 🚫 No stored gist found for share ID: ${shareId}`);
+      return null;
+    }
+    
+    // Update access count
+    await env.DB.prepare(`
+      UPDATE stored_gists 
+      SET access_count = access_count + 1, last_accessed_at = CURRENT_TIMESTAMP
+      WHERE share_id = ?
+    `).bind(shareId).run();
+    
+    console.log(`[${timestamp}] 🎯 Retrieved stored gist for share ID: ${shareId}`);
+    return {
+      content: result.content as string,
+      filename: result.filename as string,
+      originalGistId: result.original_gist_id as string
+    };
+  } catch (error) {
+    console.error(`[${timestamp}] 💥 Error retrieving stored gist:`, error);
+    return null;
+  }
+}
+
+
+async function fetchGistComponent(gistId: string, _env: Env): Promise<{ content: string; filename: string; description: string } | null> {
   const startTime = new Date();
   const timestamp = startTime.toISOString();
   
@@ -64,7 +157,8 @@ async function fetchGistComponent(gistId: string, _env: Env): Promise<{ content:
 
     return {
       content: tsxFile.content,
-      filename: tsxFile.filename
+      filename: tsxFile.filename,
+      description: gist.description
     };
   } catch (error) {
     const totalDuration = Date.now() - startTime.getTime();
@@ -203,36 +297,146 @@ export default {
       return Response.json({ error: 'API endpoint not found' }, { status: 404 });
     }
 
-    // Gist component endpoint
-    const gistId = path.slice(1); // Remove leading slash
-    if (gistId && gistId.length > 0 && !gistId.includes('/')) {
-      console.log(`[${new Date().toISOString()}] 🎯 Processing gist request: ${gistId}`);
+    // Check if this looks like a share ID (8 chars) or gist ID (32 chars)
+    const pathId = path.slice(1); // Remove leading slash
+    if (pathId && pathId.length > 0 && !pathId.includes('/')) {
+      console.log(`[${new Date().toISOString()}] 🎯 Processing request for: ${pathId}`);
       
-      const component = await fetchGistComponent(gistId, env);
-      
-      if (!component) {
-        console.log(`[${new Date().toISOString()}] 🚫 Gist ${gistId} not found or invalid`);
-        await updateAnalytics(env, gistId, 'unknown', false, 'Gist not found or no .tsx file');
-        const duration = Date.now() - requestStart.getTime();
-        console.log(`[${new Date().toISOString()}] ⏱️  Request completed in ${duration}ms (404)`);
-        return Response.json({ error: 'Gist not found or does not contain a .tsx file' }, { status: 404 });
+      // Check if this is a stored gist share ID (shorter)
+      if (pathId.length === 8) {
+        console.log(`[${new Date().toISOString()}] 🔗 Looks like a share ID: ${pathId}`);
+        
+        // Check Accept header to see if API request or browser visit
+        const acceptHeader = request.headers.get('accept') || '';
+        const isApiRequest = acceptHeader.includes('application/json') || 
+                            request.headers.get('x-requested-with') === 'XMLHttpRequest';
+        
+        if (isApiRequest) {
+          const storedGist = await getStoredGist(env, pathId);
+          
+          if (!storedGist) {
+            console.log(`[${new Date().toISOString()}] 🚫 Share ID ${pathId} not found`);
+            const duration = Date.now() - requestStart.getTime();
+            console.log(`[${new Date().toISOString()}] ⏱️  Request completed in ${duration}ms (404)`);
+            return Response.json({ error: 'Shared component not found' }, { status: 404 });
+          }
+          
+          const duration = Date.now() - requestStart.getTime();
+          console.log(`[${new Date().toISOString()}] 🎉 Successfully served stored gist ${pathId} in ${duration}ms`);
+          
+          return Response.json({
+            content: storedGist.content,
+            filename: storedGist.filename,
+            gistId: storedGist.originalGistId,
+            shareId: pathId,
+            isShared: true
+          }, {
+            headers: corsHeaders
+          });
+        } else {
+          // For browser visits to share IDs, we still need to serve the React app
+          // Let the frontend handle the routing
+          console.log(`[${new Date().toISOString()}] 🌐 Direct browser visit to share ID ${pathId} - serving React app`);
+        }
       }
+      
+      // Regular gist ID (32 chars or longer)
+      const gistId = pathId;
+      
+      // Check if this is an API request (from React app) or direct browser navigation
+      const acceptHeader = request.headers.get('accept') || '';
+      const isApiRequest = acceptHeader.includes('application/json') || 
+                          request.headers.get('x-requested-with') === 'XMLHttpRequest';
+      
+      console.log(`[${new Date().toISOString()}] 📝 Request type: ${isApiRequest ? 'API' : 'Browser'} (Accept: ${acceptHeader})`);
+      
+      if (isApiRequest) {
+        // This is an API request from the React app - return JSON data
+        const component = await fetchGistComponent(gistId, env);
+        
+        if (!component) {
+          console.log(`[${new Date().toISOString()}] 🚫 Gist ${gistId} not found or invalid`);
+          await updateAnalytics(env, gistId, 'unknown', false, 'Gist not found or no .tsx file');
+          const duration = Date.now() - requestStart.getTime();
+          console.log(`[${new Date().toISOString()}] ⏱️  Request completed in ${duration}ms (404)`);
+          return Response.json({ error: 'Gist not found or does not contain a .tsx file' }, { status: 404 });
+        }
 
-      await updateAnalytics(env, gistId, component.filename, true);
-      
-      const duration = Date.now() - requestStart.getTime();
-      console.log(`[${new Date().toISOString()}] 🎉 Successfully served gist ${gistId}/${component.filename} in ${duration}ms`);
-      
-      return Response.json({
-        content: component.content,
-        filename: component.filename,
-        gistId: gistId
-      }, {
-        headers: corsHeaders
-      });
+        // Store the gist for sharing and get share ID
+        let shareId: string | null = null;
+        try {
+          shareId = await storeGistForSharing(env, gistId, component.filename, component.content, component.description || '');
+          console.log(`[${new Date().toISOString()}] 🔗 Generated share ID for ${gistId}: ${shareId}`);
+        } catch (error) {
+          console.error(`[${new Date().toISOString()}] ⚠️  Failed to generate share ID for ${gistId}:`, error);
+          // Continue without share ID - not critical
+        }
+
+        await updateAnalytics(env, gistId, component.filename, true);
+        
+        const duration = Date.now() - requestStart.getTime();
+        console.log(`[${new Date().toISOString()}] 🎉 Successfully served gist ${gistId}/${component.filename} in ${duration}ms`);
+        
+        return Response.json({
+          content: component.content,
+          filename: component.filename,
+          gistId: gistId,
+          shareId: shareId
+        }, {
+          headers: corsHeaders
+        });
+      } else {
+        // This is a direct browser visit - serve the React app HTML
+        console.log(`[${new Date().toISOString()}] 🌐 Direct browser visit to gist ${gistId} - serving React app`);
+        
+        // Serve index.html for SPA routing
+        try {
+          const indexResponse = await env.ASSETS.fetch(new Request(new URL('/index.html', request.url)));
+          if (indexResponse.ok) {
+            console.log(`[${new Date().toISOString()}] ✅ Served index.html for gist ${gistId}`);
+            return new Response(indexResponse.body, {
+              headers: {
+                ...Object.fromEntries(indexResponse.headers),
+                'Content-Type': 'text/html'
+              }
+            });
+          }
+        } catch (error) {
+          console.error(`[${new Date().toISOString()}] 💥 Error serving index.html:`, error);
+        }
+      }
     }
 
-    // Fallback to static assets  
+    // For any other routes that might be SPA routes, serve index.html
+    try {
+      const indexResponse = await env.ASSETS.fetch(new Request(new URL('/index.html', request.url)));
+      if (indexResponse.ok) {
+        console.log(`[${new Date().toISOString()}] 🌐 Serving index.html for SPA route: ${path}`);
+        return new Response(indexResponse.body, {
+          headers: {
+            ...Object.fromEntries(indexResponse.headers),
+            'Content-Type': 'text/html'
+          }
+        });
+      }
+    } catch (error) {
+      console.error(`[${new Date().toISOString()}] 💥 Error serving index.html for route ${path}:`, error);
+    }
+    
+    // Last resort - try to serve the requested asset directly
+    try {
+      const assetResponse = await env.ASSETS.fetch(request);
+      if (assetResponse.ok) {
+        console.log(`[${new Date().toISOString()}] 📁 Served static asset: ${path}`);
+        return assetResponse;
+      }
+    } catch (error) {
+      console.error(`[${new Date().toISOString()}] 💥 Error serving static asset ${path}:`, error);
+    }
+    
+    const duration = Date.now() - requestStart.getTime();
+    console.log(`[${new Date().toISOString()}] 🚫 Route not found: ${path} (${duration}ms)`);
+    
     return new Response('Not Found', { status: 404 });
   },
 } satisfies ExportedHandler<Env>;
