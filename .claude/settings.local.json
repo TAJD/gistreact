@@ -14,7 +14,9 @@
       "Bash(pnpm deploy:*)",
       "Bash(wrangler d1 create:*)",
       "Bash(wrangler d1 execute:*)",
-      "Bash(pnpm dev:*)"
+      "Bash(pnpm dev:*)",
+      "WebFetch(domain:gist.github.com)",
+      "Bash(pnpm remove:*)"
     ],
     "deny": []
   }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Sandpack } from '@codesandbox/sandpack-react'
+import { getMainReactComponent } from '../utils/astComponentDetector'
 
 interface GistResponse {
   content: string
@@ -242,24 +243,26 @@ export function GistRenderer({ gistId }: GistRendererProps) {
     )
   }
 
-  // Extract the component name from the gist content with multiple patterns
-  let componentName = 'Component';
+  // Extract the component name using AST parsing first, fallback to regex
+  let componentName = getMainReactComponent(component.content) || 'Component';
   
-  // Try different export patterns
-  const patterns = [
-    /export default (\w+)/,                    // export default ComponentName
-    /export default function (\w+)/,          // export default function ComponentName()
-    /const (\w+) = .*export default \1/s,     // const ComponentName = ... export default ComponentName
-    /function (\w+)\(.*\).*export default \1/s, // function ComponentName() ... export default ComponentName
-    /const (\w+) = \(/,                       // const ComponentName = (
-    /function (\w+)\(/                        // function ComponentName(
-  ];
-  
-  for (const pattern of patterns) {
-    const match = component.content.match(pattern);
-    if (match && match[1]) {
-      componentName = match[1];
-      break;
+  // If AST parsing didn't find a component, try regex patterns as fallback
+  if (componentName === 'Component') {
+    const patterns = [
+      /export default (\w+)/,                    // export default ComponentName
+      /export default function (\w+)/,          // export default function ComponentName()
+      /const (\w+) = .*export default \1/s,     // const ComponentName = ... export default ComponentName
+      /function (\w+)\(.*\).*export default \1/s, // function ComponentName() ... export default ComponentName
+      /const (\w+) = \(/,                       // const ComponentName = (
+      /function (\w+)\(/                        // function ComponentName(
+    ];
+    
+    for (const pattern of patterns) {
+      const match = component.content.match(pattern);
+      if (match && match[1]) {
+        componentName = match[1];
+        break;
+      }
     }
   }
   
