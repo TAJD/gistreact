@@ -20,7 +20,7 @@ function ShareableLink({ shareId, gistId }: { shareId: string; gistId: string })
   const [isUpdating, setIsUpdating] = useState(false)
   const [error, setError] = useState('')
   
-  const shareUrl = `${window.location.origin}/${currentShareId}`
+  const shareUrl = `${window.location.origin}/share/${currentShareId}`
   
   const copyToClipboard = () => {
     navigator.clipboard.writeText(shareUrl)
@@ -104,7 +104,7 @@ function ShareableLink({ shareId, gistId }: { shareId: string; gistId: string })
       {isEditing && (
         <div className="custom-name-editor">
           <div className="editor-row">
-            <span className="url-prefix">{window.location.origin}/</span>
+            <span className="url-prefix">{window.location.origin}/share/</span>
             <input
               type="text"
               value={customName}
@@ -150,7 +150,15 @@ export function GistRenderer({ gistId }: GistRendererProps) {
         setError(null)
         
         console.log(`🔍 Fetching gist: ${gistId}`)
-        const response = await fetch(`/${gistId}`)
+        // Check if this is a share ID or direct gist ID
+        const isShareId = window.location.pathname.startsWith('/share/')
+        const fetchUrl = isShareId ? `/share/${gistId}` : `/${gistId}`
+        const response = await fetch(fetchUrl, {
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        })
         
         if (!response.ok) {
           const errorData = await response.json()

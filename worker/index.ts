@@ -373,50 +373,50 @@ export default {
       return Response.json({ error: 'API endpoint not found' }, { status: 404 });
     }
 
-    // Check if this looks like a share ID (8 chars) or gist ID (32 chars)
-    const pathId = path.slice(1); // Remove leading slash
-    if (pathId && pathId.length > 0 && !pathId.includes('/')) {
-      console.log(`[${new Date().toISOString()}] 🎯 Processing request for: ${pathId}`);
+    // Handle shareable links with /share/ prefix
+    if (path.startsWith('/share/')) {
+      const shareId = path.slice(7); // Remove '/share/' prefix
+      console.log(`[${new Date().toISOString()}] 🔗 Processing share request for: ${shareId}`);
       
-      // Check if this is a stored gist share ID (shorter than typical gist ID)
-      if (pathId.length <= 50 && pathId.length >= 3 && /^[a-zA-Z0-9-_]+$/.test(pathId)) {
-        console.log(`[${new Date().toISOString()}] 🔗 Looks like a share ID: ${pathId}`);
-        
+      if (shareId && shareId.length >= 3 && shareId.length <= 50 && /^[a-zA-Z0-9-_]+$/.test(shareId)) {
         // Check Accept header to see if API request or browser visit
         const acceptHeader = request.headers.get('accept') || '';
         const isApiRequest = acceptHeader.includes('application/json') || 
                             request.headers.get('x-requested-with') === 'XMLHttpRequest';
         
         if (isApiRequest) {
-          const storedGist = await getStoredGist(env, pathId);
+          const storedGist = await getStoredGist(env, shareId);
           
           if (!storedGist) {
-            console.log(`[${new Date().toISOString()}] 🚫 Share ID ${pathId} not found`);
+            console.log(`[${new Date().toISOString()}] 🚫 Share ID ${shareId} not found`);
             const duration = Date.now() - requestStart.getTime();
             console.log(`[${new Date().toISOString()}] ⏱️  Request completed in ${duration}ms (404)`);
             return Response.json({ error: 'Shared component not found' }, { status: 404 });
           }
           
           const duration = Date.now() - requestStart.getTime();
-          console.log(`[${new Date().toISOString()}] 🎉 Successfully served stored gist ${pathId} in ${duration}ms`);
+          console.log(`[${new Date().toISOString()}] 🎉 Successfully served stored gist ${shareId} in ${duration}ms`);
           
           return Response.json({
             content: storedGist.content,
             filename: storedGist.filename,
             gistId: storedGist.originalGistId,
-            shareId: pathId,
+            shareId: shareId,
             isShared: true
           }, {
             headers: corsHeaders
           });
-        } else {
-          // For browser visits to share IDs, we still need to serve the React app
-          // Let the frontend handle the routing
-          console.log(`[${new Date().toISOString()}] 🌐 Direct browser visit to share ID ${pathId} - serving React app`);
         }
+        // For browser visits to share URLs, serve the React app (fall through)
+        console.log(`[${new Date().toISOString()}] 🌐 Direct browser visit to share ${shareId} - serving React app`);
       }
+    }
+
+    // Handle direct gist IDs or any other SPA routes
+    const pathId = path.slice(1); // Remove leading slash
+    if (pathId && pathId.length > 0 && !pathId.includes('/') && pathId.length >= 32 && /^[a-fA-F0-9]+$/.test(pathId)) {
+      console.log(`[${new Date().toISOString()}] 🎯 Processing gist request for: ${pathId}`);
       
-      // Regular gist ID (32 chars or longer)
       const gistId = pathId;
       
       // Check if this is an API request (from React app) or direct browser navigation
@@ -461,26 +461,9 @@ export default {
         }, {
           headers: corsHeaders
         });
-      } else {
-        // This is a direct browser visit - serve the React app HTML
-        console.log(`[${new Date().toISOString()}] 🌐 Direct browser visit to gist ${gistId} - serving React app`);
-        
-        // Serve index.html for SPA routing
-        try {
-          const indexResponse = await env.ASSETS.fetch(new Request(new URL('/index.html', request.url)));
-          if (indexResponse.ok) {
-            console.log(`[${new Date().toISOString()}] ✅ Served index.html for gist ${gistId}`);
-            return new Response(indexResponse.body, {
-              headers: {
-                ...Object.fromEntries(indexResponse.headers),
-                'Content-Type': 'text/html'
-              }
-            });
-          }
-        } catch (error) {
-          console.error(`[${new Date().toISOString()}] 💥 Error serving index.html:`, error);
-        }
       }
+      // For direct browser visits to gist URLs, fall through to serve SPA
+      console.log(`[${new Date().toISOString()}] 🌐 Direct browser visit to gist ${gistId} - serving React app`);
     }
 
     // For any other routes that might be SPA routes, serve index.html

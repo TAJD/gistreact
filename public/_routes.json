@@ -2,7 +2,8 @@
   "version": 1,
   "include": [
     "/api/*",
-    "/proxy*"
+    "/proxy*",
+    "/share/*"
   ],
   "exclude": [
     "/assets/*",
