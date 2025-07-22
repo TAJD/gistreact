@@ -13,11 +13,71 @@ interface GistRendererProps {
   gistId: string
 }
 
-function ShareableLink({ shareId }: { shareId: string }) {
-  const shareUrl = `${window.location.origin}/${shareId}`
+function ShareableLink({ shareId, gistId }: { shareId: string; gistId: string }) {
+  const [customName, setCustomName] = useState('')
+  const [isEditing, setIsEditing] = useState(false)
+  const [currentShareId, setCurrentShareId] = useState(shareId)
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [error, setError] = useState('')
+  
+  const shareUrl = `${window.location.origin}/${currentShareId}`
   
   const copyToClipboard = () => {
     navigator.clipboard.writeText(shareUrl)
+  }
+  
+  const updateCustomName = async () => {
+    if (!customName.trim()) {
+      setError('Custom name cannot be empty')
+      return
+    }
+    
+    if (customName.length < 3) {
+      setError('Custom name must be at least 3 characters')
+      return
+    }
+    
+    if (!/^[a-zA-Z0-9-_]+$/.test(customName)) {
+      setError('Custom name can only contain letters, numbers, hyphens, and underscores')
+      return
+    }
+    
+    setIsUpdating(true)
+    setError('')
+    
+    try {
+      const response = await fetch('/api/update-share-id', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          gistId,
+          oldShareId: currentShareId,
+          newShareId: customName.trim()
+        })
+      })
+      
+      const result = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update custom name')
+      }
+      
+      setCurrentShareId(customName.trim())
+      setIsEditing(false)
+      setCustomName('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error occurred')
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+  
+  const cancelEdit = () => {
+    setIsEditing(false)
+    setCustomName('')
+    setError('')
   }
   
   return (
@@ -32,7 +92,48 @@ function ShareableLink({ shareId }: { shareId: string }) {
         >
           📋
         </button>
+        <button 
+          onClick={() => setIsEditing(!isEditing)}
+          className="edit-btn"
+          title="Customize link"
+        >
+          ✏️
+        </button>
       </div>
+      
+      {isEditing && (
+        <div className="custom-name-editor">
+          <div className="editor-row">
+            <span className="url-prefix">{window.location.origin}/</span>
+            <input
+              type="text"
+              value={customName}
+              onChange={(e) => setCustomName(e.target.value)}
+              placeholder="my-custom-name"
+              className="custom-name-input"
+              disabled={isUpdating}
+            />
+            <button 
+              onClick={updateCustomName}
+              disabled={isUpdating || !customName.trim()}
+              className="save-btn"
+            >
+              {isUpdating ? '...' : '✓'}
+            </button>
+            <button 
+              onClick={cancelEdit}
+              disabled={isUpdating}
+              className="cancel-btn"
+            >
+              ✕
+            </button>
+          </div>
+          {error && <div className="error-message">{error}</div>}
+          <div className="editor-help">
+            Use letters, numbers, hyphens, and underscores only (min 3 characters)
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -191,7 +292,7 @@ export default function App() {
           <span className="gist-id">Gist: {gistId}</span>
         </div>
       </nav>
-      {component.shareId && <ShareableLink shareId={component.shareId} />}
+      {component.shareId && <ShareableLink shareId={component.shareId} gistId={gistId} />}
       <div className="component-container">
         <Sandpack
           template="react-ts"

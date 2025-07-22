@@ -70,6 +70,52 @@ async function storeGistForSharing(env: Env, gistId: string, filename: string, c
   }
 }
 
+async function updateShareId(env: Env, gistId: string, filename: string, oldShareId: string, newShareId: string): Promise<boolean> {
+  const timestamp = new Date().toISOString();
+  
+  try {
+    // Validate new share ID format
+    if (!/^[a-zA-Z0-9-_]+$/.test(newShareId)) {
+      throw new Error('Custom name can only contain letters, numbers, hyphens, and underscores');
+    }
+    
+    if (newShareId.length < 3) {
+      throw new Error('Custom name must be at least 3 characters');
+    }
+    
+    if (newShareId.length > 50) {
+      throw new Error('Custom name must be less than 50 characters');
+    }
+    
+    // Check if new share ID is already taken
+    const collision = await env.DB.prepare(`
+      SELECT share_id FROM stored_gists WHERE share_id = ? AND share_id != ?
+    `).bind(newShareId, oldShareId).first();
+    
+    if (collision) {
+      throw new Error('This custom name is already taken. Please choose another.');
+    }
+    
+    // Update the share ID
+    const result = await env.DB.prepare(`
+      UPDATE stored_gists 
+      SET share_id = ?, last_accessed_at = CURRENT_TIMESTAMP
+      WHERE original_gist_id = ? AND filename = ? AND share_id = ?
+    `).bind(newShareId, gistId, filename, oldShareId).run();
+    
+    if (!result.success || result.meta.changes === 0) {
+      console.log(`[${timestamp}] 🚫 No rows updated for ${gistId}/${filename} ${oldShareId} -> ${newShareId}`);
+      throw new Error('Share ID not found or could not be updated');
+    }
+    
+    console.log(`[${timestamp}] ✅ Updated share ID for ${gistId}/${filename}: ${oldShareId} -> ${newShareId}`);
+    return true;
+  } catch (error) {
+    console.error(`[${timestamp}] 💥 Error updating share ID:`, error);
+    throw error;
+  }
+}
+
 async function getStoredGist(env: Env, shareId: string): Promise<{content: string, filename: string, originalGistId: string} | null> {
   const timestamp = new Date().toISOString();
   
@@ -293,6 +339,36 @@ export default {
         const gists = await getPopularGists(env);
         return Response.json(gists, { headers: corsHeaders });
       }
+      
+      if (path === "/api/update-share-id" && request.method === "POST") {
+        try {
+          const body = await request.json() as { gistId?: string; oldShareId?: string; newShareId?: string };
+          const { gistId, oldShareId, newShareId } = body;
+          
+          if (!gistId || !oldShareId || !newShareId) {
+            return Response.json({ error: 'Missing required fields: gistId, oldShareId, newShareId' }, { status: 400 });
+          }
+          
+          // Get the filename for this gist
+          const stored = await env.DB.prepare(`
+            SELECT filename FROM stored_gists 
+            WHERE original_gist_id = ? AND share_id = ?
+          `).bind(gistId, oldShareId).first();
+          
+          if (!stored) {
+            return Response.json({ error: 'Share ID not found' }, { status: 404 });
+          }
+          
+          await updateShareId(env, gistId, stored.filename as string, oldShareId, newShareId);
+          
+          console.log(`[${new Date().toISOString()}] ✅ Successfully updated share ID: ${oldShareId} -> ${newShareId}`);
+          return Response.json({ success: true, newShareId }, { headers: corsHeaders });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+          console.error(`[${new Date().toISOString()}] 💥 Update share ID failed:`, errorMessage);
+          return Response.json({ error: errorMessage }, { status: 400 });
+        }
+      }
 
       return Response.json({ error: 'API endpoint not found' }, { status: 404 });
     }
@@ -302,8 +378,8 @@ export default {
     if (pathId && pathId.length > 0 && !pathId.includes('/')) {
       console.log(`[${new Date().toISOString()}] 🎯 Processing request for: ${pathId}`);
       
-      // Check if this is a stored gist share ID (shorter)
-      if (pathId.length === 8) {
+      // Check if this is a stored gist share ID (shorter than typical gist ID)
+      if (pathId.length <= 50 && pathId.length >= 3 && /^[a-zA-Z0-9-_]+$/.test(pathId)) {
         console.log(`[${new Date().toISOString()}] 🔗 Looks like a share ID: ${pathId}`);
         
         // Check Accept header to see if API request or browser visit
