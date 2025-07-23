@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Sandpack } from '@codesandbox/sandpack-react'
 import { getMainReactComponent } from '../utils/astComponentDetector'
 
@@ -143,6 +143,9 @@ export function GistRenderer({ gistId }: GistRendererProps) {
   const [component, setComponent] = useState<GistResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true)
+  const lastScrollY = useRef(0)
+  const headerRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
     const loadComponent = async () => {
@@ -185,6 +188,27 @@ export function GistRenderer({ gistId }: GistRendererProps) {
     loadComponent()
   }, [gistId])
 
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY
+      const scrollingDown = currentScrollY > lastScrollY.current
+      const scrollThreshold = 10
+
+      if (Math.abs(currentScrollY - lastScrollY.current) > scrollThreshold) {
+        if (scrollingDown && currentScrollY > 100) {
+          setIsHeaderVisible(false)
+        } else if (!scrollingDown) {
+          setIsHeaderVisible(true)
+        }
+      }
+
+      lastScrollY.current = currentScrollY
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
   const goHome = () => {
     window.history.pushState(null, '', '/')
     window.dispatchEvent(new PopStateEvent('popstate'))
@@ -193,7 +217,7 @@ export function GistRenderer({ gistId }: GistRendererProps) {
   if (loading) {
     return (
       <div className="gist-renderer">
-        <nav className="gist-nav">
+        <nav ref={headerRef} role="navigation" className={`gist-nav ${isHeaderVisible ? 'visible' : 'hidden'}`}>
           <button onClick={goHome} className="home-btn">← Home</button>
         </nav>
         <div className="loading">Loading component...</div>
@@ -204,7 +228,7 @@ export function GistRenderer({ gistId }: GistRendererProps) {
   if (error) {
     return (
       <div className="gist-renderer">
-        <nav className="gist-nav">
+        <nav ref={headerRef} role="navigation" className={`gist-nav ${isHeaderVisible ? 'visible' : 'hidden'}`}>
           <button onClick={goHome} className="home-btn">← Home</button>
         </nav>
         <div className="error">
@@ -227,7 +251,7 @@ export function GistRenderer({ gistId }: GistRendererProps) {
   if (!component) {
     return (
       <div className="gist-renderer">
-        <nav className="gist-nav">
+        <nav ref={headerRef} role="navigation" className={`gist-nav ${isHeaderVisible ? 'visible' : 'hidden'}`}>
           <button onClick={goHome} className="home-btn">← Home</button>
         </nav>
         <div className="component-container">
@@ -296,7 +320,7 @@ export default function App() {
 
   return (
     <div className="gist-renderer">
-      <nav className="gist-nav">
+      <nav ref={headerRef} role="navigation" className={`gist-nav ${isHeaderVisible ? 'visible' : 'hidden'}`}>
         <button onClick={goHome} className="home-btn">← Home</button>
         <div className="gist-info">
           <span className="filename">{component.filename}</span>

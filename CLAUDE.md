@@ -94,3 +94,59 @@ GistReact hosts React components from GitHub Gists with the following features:
 ### Analytics:
 - D1 database tracks view counts, errors, and timestamps
 - No caching - always fetches fresh content from GitHub
+
+## 🚨 CRITICAL TESTING REQUIREMENTS
+
+**NEVER CONSIDER WORK COMPLETE UNTIL ALL TESTS PASS**
+
+### Mandatory Test Execution Before Completion:
+
+1. **Always run the full test suite before finishing any task:**
+   ```bash
+   # Run unit tests
+   pnpm test:run
+   
+   # Run integration tests (working subset)
+   pnpm vitest run src/test/integration/worker-functions.test.ts --config vitest.integration.config.ts
+   
+   # Run E2E tests
+   pnpm test:e2e
+   
+   # Run build to ensure no compilation errors
+   pnpm build
+   
+   # Run linting (can have warnings but should not fail)
+   pnpm lint
+   ```
+
+2. **Integration Test Requirements:**
+   - The ephemeral D1 database integration tests MUST pass
+   - `worker-functions.test.ts` should show 11/11 tests passing
+   - These tests verify D1 database operations, analytics, and shareable links
+
+3. **Test Failure Response Protocol:**
+   - If ANY test fails, investigate and fix the root cause
+   - Do not implement workarounds that bypass failing tests
+   - Do not mark tasks as complete with failing tests
+   - If tests were passing before changes, ensure they still pass after
+
+4. **CI/CD Compatibility:**
+   - Tests must pass in both local environment and GitHub Actions CI
+   - Ensure Node.js v22.16.0 and pnpm v10.12.1 compatibility
+   - Integration tests use ephemeral databases (no external dependencies)
+
+5. **Test Coverage Requirements:**
+   - Unit tests for React components and utility functions
+   - Integration tests for D1 database operations and API endpoints
+   - E2E tests for user interface interactions
+   - Build verification to ensure production deployment works
+
+### Quality Gates:
+- ✅ All unit tests pass
+- ✅ Integration tests with ephemeral D1 databases pass  
+- ✅ E2E tests pass
+- ✅ TypeScript compilation succeeds
+- ✅ Build completes successfully
+- ✅ No critical linting errors
+
+**Remember: Passing tests are the ultimate measure of code quality and functionality. Never compromise on test quality to rush completion.**

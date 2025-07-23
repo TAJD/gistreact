@@ -26,3 +26,15 @@ dist-ssr
 # wrangler files
 .wrangler
 .dev.vars*
+
+# Test output directories
+coverage/
+test-results/
+playwright-report/
+.nyc_output/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Vitest
+.vitest/
