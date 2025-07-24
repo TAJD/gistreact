@@ -125,6 +125,17 @@ describe('GistRenderer', () => {
     const nav = screen.getByRole('navigation')
     expect(nav).toHaveClass('visible')
 
+    // Mock header height for testing
+    Object.defineProperty(nav, 'offsetHeight', {
+      writable: true,
+      value: 90,
+    })
+
+    // Wait for header height to be updated after loading
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 100))
+    })
+
     // First simulate being at top (small scroll)
     await act(async () => {
       Object.defineProperty(window, 'scrollY', {
@@ -138,7 +149,7 @@ describe('GistRenderer', () => {
     await act(async () => {
       Object.defineProperty(window, 'scrollY', {
         writable: true,
-        value: 150, // Past the 100px threshold and 10px scroll diff
+        value: 150, // Past the headerHeight/2 (45px) threshold and 5px scroll diff
       })
       
       // Trigger scroll event
@@ -171,6 +182,17 @@ describe('GistRenderer', () => {
     })
 
     const nav = screen.getByRole('navigation')
+
+    // Mock header height for testing
+    Object.defineProperty(nav, 'offsetHeight', {
+      writable: true,
+      value: 90,
+    })
+
+    // Wait for header height to be updated after loading
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 100))
+    })
 
     // Start with small scroll
     await act(async () => {

@@ -144,6 +144,7 @@ export function GistRenderer({ gistId }: GistRendererProps) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [isHeaderVisible, setIsHeaderVisible] = useState(true)
+  const [headerHeight, setHeaderHeight] = useState(90)
   const lastScrollY = useRef(0)
   const headerRef = useRef<HTMLElement>(null)
 
@@ -182,6 +183,13 @@ export function GistRenderer({ gistId }: GistRendererProps) {
         setError(err instanceof Error ? err.message : 'Unknown error occurred')
       } finally {
         setLoading(false)
+        // Update header height after loading is complete
+        setTimeout(() => {
+          if (headerRef.current) {
+            const height = headerRef.current.offsetHeight || 90
+            setHeaderHeight(height)
+          }
+        }, 50)
       }
     }
 
@@ -189,13 +197,35 @@ export function GistRenderer({ gistId }: GistRendererProps) {
   }, [gistId])
 
   useEffect(() => {
+    const updateHeaderHeight = () => {
+      if (headerRef.current) {
+        const height = headerRef.current.offsetHeight || 90
+        setHeaderHeight(height)
+      }
+    }
+    
+    // Update header height on mount and resize
+    updateHeaderHeight()
+    // Also update after a brief delay to ensure DOM is ready
+    const timeoutId = setTimeout(updateHeaderHeight, 100)
+    
+    window.addEventListener('resize', updateHeaderHeight)
+    
+    return () => {
+      window.removeEventListener('resize', updateHeaderHeight)
+      clearTimeout(timeoutId)
+    }
+  }, [])
+
+  useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY
       const scrollingDown = currentScrollY > lastScrollY.current
-      const scrollThreshold = 10
+      const scrollThreshold = 5 // Reduced threshold for better mobile responsiveness
 
       if (Math.abs(currentScrollY - lastScrollY.current) > scrollThreshold) {
-        if (scrollingDown && currentScrollY > 100) {
+        const hideThreshold = Math.max(headerHeight / 2, 45) // Minimum 45px threshold
+        if (scrollingDown && currentScrollY > hideThreshold) {
           setIsHeaderVisible(false)
         } else if (!scrollingDown) {
           setIsHeaderVisible(true)
@@ -207,7 +237,7 @@ export function GistRenderer({ gistId }: GistRendererProps) {
 
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
+  }, [headerHeight])
 
   const goHome = () => {
     window.history.pushState(null, '', '/')
@@ -220,7 +250,7 @@ export function GistRenderer({ gistId }: GistRendererProps) {
         <nav ref={headerRef} role="navigation" className={`gist-nav ${isHeaderVisible ? 'visible' : 'hidden'}`}>
           <button onClick={goHome} className="home-btn">← Home</button>
         </nav>
-        <div className="loading">Loading component...</div>
+        <div className="loading" style={{ marginTop: `${headerHeight}px` }}>Loading component...</div>
       </div>
     )
   }
@@ -231,7 +261,7 @@ export function GistRenderer({ gistId }: GistRendererProps) {
         <nav ref={headerRef} role="navigation" className={`gist-nav ${isHeaderVisible ? 'visible' : 'hidden'}`}>
           <button onClick={goHome} className="home-btn">← Home</button>
         </nav>
-        <div className="error">
+        <div className="error" style={{ marginTop: `${headerHeight}px` }}>
           <h2>Error loading component</h2>
           <p>{error}</p>
           <details>
@@ -254,7 +284,7 @@ export function GistRenderer({ gistId }: GistRendererProps) {
         <nav ref={headerRef} role="navigation" className={`gist-nav ${isHeaderVisible ? 'visible' : 'hidden'}`}>
           <button onClick={goHome} className="home-btn">← Home</button>
         </nav>
-        <div className="component-container">
+        <div className="component-container" style={{ marginTop: `${headerHeight}px`, height: `calc(100vh - ${headerHeight}px)` }}>
           {loading && <div className="loading">Loading component...</div>}
           {error && (
             <div className="error">
@@ -328,7 +358,7 @@ export default function App() {
         </div>
       </nav>
       {component.shareId && <ShareableLink shareId={component.shareId} gistId={gistId} />}
-      <div className="component-container">
+      <div className="component-container" style={{ marginTop: `${headerHeight}px`, height: `calc(100vh - ${headerHeight}px)` }}>
         <Sandpack
           template="react-ts"
           files={files}

@@ -513,13 +513,11 @@ footer p {
 .component-container {
   flex: 1;
   margin: 0;
-  margin-top: 90px;
   border-radius: 0;
   overflow: hidden;
   box-shadow: none;
   border: none;
   background: white;
-  height: calc(100% - 90px);
   min-height: 0;
 }
 
@@ -738,7 +736,6 @@ footer p {
   
   .component-container {
     margin: 0;
-    height: calc(100vh - 120px);
   }
   
   .error {
