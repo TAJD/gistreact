@@ -42,7 +42,8 @@
       "Bash(del testsshare-demo.spec.ts)",
       "Bash(del testsshare-toggle-demo.spec.ts)",
       "Bash(powershell:*)",
-      "Bash(del cleanup.js)"
+      "Bash(del cleanup.js)",
+      "Bash(npx eslint:*)"
     ],
     "deny": []
   }

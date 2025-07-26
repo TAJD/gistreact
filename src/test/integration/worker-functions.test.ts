@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 
 // Mock D1 database interfaces
 interface MockD1Result {
@@ -7,9 +7,9 @@ interface MockD1Result {
 }
 
 interface MockD1Statement {
-  bind: (...values: any[]) => MockD1Statement
-  first: () => Promise<any>
-  all: () => Promise<{ results: any[] }>
+  bind: (...values: unknown[]) => MockD1Statement
+  first: () => Promise<unknown>
+  all: () => Promise<{ results: unknown[] }>
   run: () => Promise<MockD1Result>
 }
 
@@ -24,7 +24,7 @@ interface MockEnv {
 // Import and test worker functions directly
 describe('Worker Functions Integration Tests', () => {
   let mockEnv: MockEnv
-  let mockDatabase: { [key: string]: any[] }
+  let mockDatabase: { [key: string]: unknown[] }
 
   beforeEach(() => {
     // Reset mock database
@@ -36,31 +36,33 @@ describe('Worker Functions Integration Tests', () => {
     // Create mock D1 database that operates on in-memory data
     const mockDB: MockD1Database = {
       prepare: (query: string) => {
-        let boundValues: any[] = []
+        let boundValues: unknown[] = []
         const statement: MockD1Statement = {
-          bind: (...values: any[]) => {
+          bind: (...values: unknown[]) => {
             boundValues = values
             return statement
           },
           first: async () => {
             if (query.includes('SELECT') && query.includes('gist_analytics')) {
-              return mockDatabase.gist_analytics.find((record: any) => {
+              return mockDatabase.gist_analytics.find((record) => {
+                const r = record as { gist_id?: string; filename?: string }
                 if (query.includes('gist_id = ?') && query.includes('filename = ?')) {
-                  return record.gist_id === boundValues[0] && record.filename === boundValues[1]
+                  return r.gist_id === boundValues[0] && r.filename === boundValues[1]
                 }
                 if (query.includes('gist_id = ?')) {
-                  return record.gist_id === boundValues[0]
+                  return r.gist_id === boundValues[0]
                 }
                 return false
               }) || null
             }
             if (query.includes('SELECT') && query.includes('stored_gists')) {
-              return mockDatabase.stored_gists.find((record: any) => {
+              return mockDatabase.stored_gists.find((record) => {
+                const r = record as { share_id?: string; original_gist_id?: string }
                 if (query.includes('share_id = ?')) {
-                  return record.share_id === boundValues[0]
+                  return r.share_id === boundValues[0]
                 }
                 if (query.includes('original_gist_id = ?')) {
-                  return record.original_gist_id === boundValues[0]
+                  return r.original_gist_id === boundValues[0]
                 }
                 return false
               }) || null

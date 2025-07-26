@@ -8,9 +8,9 @@ interface D1Database {
 }
 
 interface D1PreparedStatement {
-  bind: (...values: any[]) => D1PreparedStatement
-  first: () => Promise<any>
-  all: () => Promise<{ results: any[] }>
+  bind: () => D1PreparedStatement
+  first: () => Promise<unknown>
+  all: () => Promise<{ results: unknown[] }>
   run: () => Promise<{ success: boolean; meta: { changes: number } }>
 }
 
@@ -389,18 +389,18 @@ describe('D1 Database Integration Tests', () => {
 })
 
 // Helper function to create test environment with D1 database access
-async function createTestEnvironment(databaseName: string): Promise<TestEnv> {
+async function createTestEnvironment(): Promise<TestEnv> {
   // This is a simplified mock implementation
   // In a real environment, you'd use wrangler's local D1 API or miniflare
   
   const mockDB: D1Database = {
     prepare: (query: string) => {
       const statement: D1PreparedStatement = {
-        bind: (...values: any[]) => statement,
+        bind: () => statement,
         first: async () => {
           // This would execute the query against the local D1 database
           // For now, we'll use a simplified mock that works with the test structure
-          console.log(`Executing query: ${query} with values:`, values)
+          console.log(`Executing query: ${query}`)
           return null
         },
         all: async () => {
