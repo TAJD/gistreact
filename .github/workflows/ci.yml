@@ -14,9 +14,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
     
-    services:
-      # We'll add D1 database setup here later
-      
     steps:
     - uses: actions/checkout@v4
     
