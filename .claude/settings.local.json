@@ -35,7 +35,14 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:www.npmjs.com)",
       "Bash(pnpm:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(del testscreate-share-demo.spec.ts)",
+      "Bash(del testsfixed-mobile-scroll.spec.ts)",
+      "Bash(del testsmobile-scroll.spec.ts)",
+      "Bash(del testsshare-demo.spec.ts)",
+      "Bash(del testsshare-toggle-demo.spec.ts)",
+      "Bash(powershell:*)",
+      "Bash(del cleanup.js)"
     ],
     "deny": []
   }
