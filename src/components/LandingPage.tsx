@@ -7,7 +7,7 @@ function GistUrlInput() {
   const extractGistId = (gistUrl: string): string | null => {
     try {
       const patterns = [
-        /gist\.github\.com\/[^\/]+\/([a-f0-9]+)/,
+        /gist\.github\.com\/[^/]+\/([a-f0-9]+)/,
         /gist\.github\.com\/([a-f0-9]+)/,
       ]
       
@@ -137,6 +137,17 @@ export function LandingPage() {
             <h3>📊 Analytics</h3>
             <p>Track views and popularity of your components</p>
           </div>
+        </div>
+        
+        <div className="github-link">
+          <a 
+            href="https://github.com/TAJD/gistreact" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="github-button"
+          >
+            ⭐ Star on GitHub
+          </a>
         </div>
       </header>
 
@@ -279,6 +290,40 @@ export function LandingPage() {
 
         <GistUrlInput />
 
+        <section className="open-source-section">
+          <h2>🌟 Open Source</h2>
+          <p>
+            GistReact is completely open source and available on GitHub. 
+            Contributions, issues, and feature requests are welcome!
+          </p>
+          <div className="github-actions">
+            <a 
+              href="https://github.com/TAJD/gistreact" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="github-action-btn primary"
+            >
+              📖 View Source Code
+            </a>
+            <a 
+              href="https://github.com/TAJD/gistreact/issues" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="github-action-btn secondary"
+            >
+              🐛 Report Issues
+            </a>
+            <a 
+              href="https://github.com/TAJD/gistreact/blob/main/CONTRIBUTING.md" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="github-action-btn secondary"
+            >
+              🤝 Contribute
+            </a>
+          </div>
+        </section>
+
         {loading ? (
           <div className="loading">Loading gists...</div>
         ) : (
@@ -333,6 +378,18 @@ export function LandingPage() {
       <footer>
         <div className="footer-content">
           <p>Built with React, TypeScript, and Cloudflare Workers</p>
+          <p>
+            Open source on{' '}
+            <a 
+              href="https://github.com/TAJD/gistreact" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="email-link"
+            >
+              GitHub
+            </a>
+            {' '}• Licensed under MIT
+          </p>
           <div className="feedback-section">
             <p>
               Have feedback or questions? Email us at{' '}

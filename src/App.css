@@ -394,7 +394,7 @@ footer {
 }
 
 footer p {
-  margin: 0;
+  margin: 0.5rem 0;
   font-size: 1rem;
   opacity: 0.8;
 }
@@ -424,6 +424,106 @@ footer p {
   color: #90cdf4;
   border-bottom-color: #90cdf4;
   text-shadow: 0 0 8px rgba(144, 205, 244, 0.3);
+}
+
+/* GitHub Links Styling */
+.github-link {
+  margin-top: 2rem;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.github-button {
+  display: inline-block;
+  background: linear-gradient(135deg, #24292e, #1b1f23);
+  color: white;
+  text-decoration: none;
+  padding: 1rem 2rem;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 15px rgba(36, 41, 46, 0.3);
+}
+
+.github-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(36, 41, 46, 0.4);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Open Source Section */
+.open-source-section {
+  background: white;
+  padding: 3rem;
+  border-radius: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  margin-bottom: 4rem;
+  text-align: center;
+}
+
+.open-source-section h2 {
+  font-size: 2.5rem;
+  margin-bottom: 1.5rem;
+  font-weight: 700;
+  color: #1a202c;
+  letter-spacing: -0.01em;
+}
+
+.open-source-section p {
+  font-size: 1.2rem;
+  color: #64748b;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.github-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.github-action-btn {
+  display: inline-block;
+  text-decoration: none;
+  padding: 0.875rem 1.5rem;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 2px solid transparent;
+}
+
+.github-action-btn.primary {
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: white;
+  box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+}
+
+.github-action-btn.primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4);
+}
+
+.github-action-btn.secondary {
+  background: white;
+  color: #4f46e5;
+  border-color: #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.github-action-btn.secondary:hover {
+  transform: translateY(-1px);
+  border-color: #4f46e5;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
 }
 
 /* Gist Renderer Styles */
@@ -804,5 +904,23 @@ footer p {
   
   .gist-card h3 {
     font-size: 1.1rem;
+  }
+  
+  .github-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .github-action-btn {
+    text-align: center;
+    width: 100%;
+  }
+  
+  .open-source-section {
+    padding: 2rem;
+  }
+  
+  .open-source-section h2 {
+    font-size: 2rem;
   }
 }
