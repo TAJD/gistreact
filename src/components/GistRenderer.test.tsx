@@ -285,6 +285,16 @@ describe('GistRenderer', () => {
 
     render(<GistRenderer gistId="test123" />)
     
+    // First wait for the component to load and share toggle button to appear
+    await waitFor(() => {
+      expect(screen.getByTitle('Show share options')).toBeInTheDocument()
+    })
+
+    // Click the share toggle button to show the ShareableLink
+    const shareToggleBtn = screen.getByTitle('Show share options')
+    fireEvent.click(shareToggleBtn)
+    
+    // Now check that the ShareableLink is visible
     await waitFor(() => {
       expect(screen.getByText('🔗 Shareable link:')).toBeInTheDocument()
       expect(screen.getByText(/\/share\/my-share-id/)).toBeInTheDocument()

@@ -144,6 +144,7 @@ export function GistRenderer({ gistId }: GistRendererProps) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [isHeaderVisible, setIsHeaderVisible] = useState(true)
+  const [isShareLinkVisible, setIsShareLinkVisible] = useState(false)
   const [headerHeight, setHeaderHeight] = useState(90)
   const lastScrollY = useRef(0)
   const headerRef = useRef<HTMLElement>(null)
@@ -188,6 +189,8 @@ export function GistRenderer({ gistId }: GistRendererProps) {
           if (headerRef.current) {
             const height = headerRef.current.offsetHeight || 90
             setHeaderHeight(height)
+            // Set CSS custom property for use in stylesheets
+            document.documentElement.style.setProperty('--header-height', `${height}px`)
           }
         }, 50)
       }
@@ -201,6 +204,8 @@ export function GistRenderer({ gistId }: GistRendererProps) {
       if (headerRef.current) {
         const height = headerRef.current.offsetHeight || 90
         setHeaderHeight(height)
+        // Set CSS custom property for use in stylesheets
+        document.documentElement.style.setProperty('--header-height', `${height}px`)
       }
     }
     
@@ -356,8 +361,19 @@ export default function App() {
           <span className="filename">{component.filename}</span>
           <span className="gist-id">Gist: {gistId}</span>
         </div>
+        {component.shareId && (
+          <button 
+            onClick={() => setIsShareLinkVisible(!isShareLinkVisible)}
+            className="share-toggle-btn"
+            title={isShareLinkVisible ? "Hide share options" : "Show share options"}
+          >
+            🔗
+          </button>
+        )}
+        {component.shareId && isShareLinkVisible && (
+          <ShareableLink shareId={component.shareId} gistId={gistId} />
+        )}
       </nav>
-      {component.shareId && <ShareableLink shareId={component.shareId} gistId={gistId} />}
       <div className="component-container" style={{ marginTop: `${headerHeight}px`, height: `calc(100vh - ${headerHeight}px)` }}>
         <Sandpack
           template="react-ts"

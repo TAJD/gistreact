@@ -468,6 +468,30 @@ button:focus-visible {
   overflow: hidden;
 }
 
+/* ShareableLink when inside the header */
+.gist-nav .shareable-link {
+  position: fixed;
+  top: var(--header-height, 90px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  margin-top: 0;
+  border-radius: 0 0 12px 12px;
+  z-index: 999;
+  animation: slideDownFromHeader 0.3s ease;
+}
+
+@keyframes slideDownFromHeader {
+  from { 
+    opacity: 0; 
+    transform: translateY(-20px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
 .shareable-link::before {
   content: '';
   position: absolute;
