@@ -664,31 +664,68 @@ button:focus-visible {
 
 /* Mobile responsive for ShareableLink */
 @media (max-width: 767px) {
+  .shareable-link {
+    padding: 12px;
+    margin: 8px;
+    margin-top: 60px; /* Align with smaller mobile header */
+    border-radius: 8px;
+  }
+
   .share-info {
     flex-direction: column;
     align-items: stretch;
-    gap: 16px;
+    gap: 8px;
   }
-  
+
+  .share-label {
+    font-size: 0.85rem;
+    text-align: center;
+  }
+
   .share-url {
     min-width: unset;
     text-overflow: ellipsis;
     overflow: hidden;
     text-align: center;
+    padding: 8px 10px;
+    font-size: 0.75rem;
   }
-  
+
   .copy-btn, .edit-btn {
     align-self: stretch;
     width: auto;
+    padding: 6px 10px;
+    font-size: 0.9rem;
   }
-  
+
+  .custom-name-editor {
+    margin-top: 12px;
+  }
+
   .editor-row {
     flex-direction: column;
     align-items: stretch;
-    gap: 16px;
+    gap: 12px;
+    padding: 12px;
   }
-  
+
+  .url-prefix {
+    font-size: 0.75rem;
+    text-align: center;
+  }
+
   .custom-name-input {
     min-width: unset;
+    font-size: 0.85rem;
+  }
+
+  .save-btn, .cancel-btn {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
+
+  .editor-help {
+    font-size: 0.7rem;
+    margin-top: 8px;
   }
 }
