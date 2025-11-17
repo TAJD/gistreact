@@ -328,7 +328,7 @@ export default function App() {
         </div>
       </nav>
       {component.shareId && <ShareableLink shareId={component.shareId} gistId={gistId} />}
-      <div className="component-container">
+      <div className={`component-container ${component.shareId ? 'with-share-link' : ''}`}>
         <Sandpack
           template="react-ts"
           files={files}

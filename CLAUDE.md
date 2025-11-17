@@ -30,6 +30,24 @@ pnpm install
 
 # Add new dependencies
 pnpm add <package-name>
+
+# Run unit tests
+pnpm test:run
+
+# Run integration tests
+pnpm test:integration
+
+# Run integration tests with UI
+pnpm test:integration:ui
+
+# Run E2E tests
+pnpm test:e2e
+
+# Run E2E tests with UI
+pnpm test:e2e:ui
+
+# Run all test suites
+pnpm test:all
 ```
 
 ## Architecture Overview
@@ -74,8 +92,10 @@ GistReact hosts React components from GitHub Gists with the following features:
 ### URL Structure:
 - `/` - Landing page with recent and popular components
 - `/{gist-id}` - Renders the React component from the specified gist
+- `/share/{shareId}` - Renders component from custom shareable link
 - `/api/recent` - Returns recent gists
 - `/api/popular` - Returns popular gists by view count
+- `/api/update-share-id` - Updates custom shareable link name (with collision detection)
 - `/proxy?url=...` - Proxy endpoint to avoid CORS issues
 
 ### Component Requirements:
@@ -85,8 +105,14 @@ GistReact hosts React components from GitHub Gists with the following features:
 - External API calls are automatically proxied to avoid CORS
 - Full Tailwind CSS support with all utility classes available
 
+### Technical Implementation:
+- **Sandpack Integration**: Uses CodeSandbox Sandpack for isolated component rendering in an iframe sandbox
+- **AST-Based Detection**: TypeScript AST parsing (`astComponentDetector.ts`) automatically detects and extracts React components from gist code
+- **Component Execution**: Detected components are wrapped and executed in Sandpack's secure environment
+- **Shareable Links**: Auto-generated 8-character IDs with collision detection; users can customize to readable names (min 3 chars, alphanumeric + hyphens/underscores)
+
 ### Security Features:
-- Sandboxed component execution
+- Sandboxed component execution in isolated iframe
 - Fetch/XMLHttpRequest override to use proxy
 - External library allowlist enforcement
 - Error boundaries for component failures
@@ -98,6 +124,41 @@ GistReact hosts React components from GitHub Gists with the following features:
 ## 🚨 CRITICAL TESTING REQUIREMENTS
 
 **NEVER CONSIDER WORK COMPLETE UNTIL ALL TESTS PASS**
+
+### Test Environments:
+- **Unit Tests** (`vitest.config.ts`): React components and utilities using jsdom environment
+- **Integration Tests** (`vitest.integration.config.ts`): Worker functions and D1 database operations using Miniflare for D1 emulation in node environment
+- **E2E Tests** (`playwright.config.ts`): Full user flows across multiple browsers (Chromium, Firefox, WebKit, Mobile Chrome)
+
+### Integration Testing with Miniflare:
+
+**What is Miniflare?** A local simulator for Cloudflare Workers that runs in Node.js, emulating the Workers runtime including D1 databases (SQLite-based), KV storage, R2, and service bindings.
+
+**Two Testing Strategies:**
+
+1. **Mock Approach** (`worker-functions.test.ts`):
+   - Custom JavaScript object mimicking D1's API (`.prepare()`, `.bind()`, `.first()`, `.all()`, `.run()`)
+   - In-memory JavaScript arrays for data storage
+   - ✅ Ultra-fast, no dependencies, great for unit testing logic
+   - ⚠️ Doesn't test actual SQL syntax or D1 quirks
+
+2. **Miniflare Approach** (`worker-integration.test.ts`):
+   - Real SQLite database created in-memory via Miniflare
+   - Tests actual worker code with real D1 queries
+   - Ephemeral databases (`d1Persist: false`) destroyed after tests
+   - ✅ High fidelity to production, tests SQL syntax, finds edge cases
+   - ✅ No network calls, no cost, no cleanup needed
+   - ⚠️ Slightly slower (still fast at ~600ms for full suite)
+
+**How Miniflare Works:**
+- Creates **real SQLite database in memory** (not a mock)
+- Real SQL execution with proper ACID transactions
+- Schema management with DDL statements
+- Indexes and performance characteristics match production
+- `mf.dispatchFetch()` sends requests directly to worker without HTTP overhead
+- Each test initializes schema via `/api/init-schema` endpoint and cleans data via `/api/cleanup`
+
+For detailed architecture diagrams and explanation, see `ARCHITECTURE.md`.
 
 ### Mandatory Test Execution Before Completion:
 

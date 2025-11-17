@@ -523,6 +523,11 @@ footer p {
   min-height: 0;
 }
 
+.component-container.with-share-link {
+  margin-top: 0;
+  height: calc(100% - 90px);
+}
+
 /* Override Sandpack styles to make preview fill the container */
 .component-container .sp-wrapper {
   height: 100% !important;
@@ -723,27 +728,55 @@ footer p {
   }
   
   .gist-nav {
-    padding: 1rem;
-    flex-direction: column;
-    gap: 1rem;
-    align-items: flex-start;
+    padding: 0.75rem;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
   }
-  
+
+  .home-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+  }
+
   .gist-info {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.75rem;
-    width: 100%;
+    flex-direction: row;
+    gap: 0.5rem;
+    width: auto;
   }
-  
+
+  .filename {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.75rem;
+  }
+
+  .gist-id {
+    font-size: 0.75rem;
+    padding: 0.3rem 0.6rem;
+  }
+
   .component-container {
-    margin: 0;
-    height: calc(100vh - 120px);
+    margin-top: 60px; /* Reduced margin for smaller mobile header */
+    height: calc(100vh - 60px);
+    border-radius: 0;
   }
-  
+
+  .component-container.with-share-link {
+    margin-top: 0;
+    height: auto;
+    min-height: calc(100vh - 190px); /* Account for header (60px) + compact share link (~130px) */
+  }
+
+  /* Adjust Sandpack for mobile */
+  .component-container .sp-preview-iframe {
+    min-width: 100vw !important;
+  }
+
   .error {
     padding: 2rem 1rem;
     margin: 1rem;
+    margin-top: 70px;
   }
 }
 
