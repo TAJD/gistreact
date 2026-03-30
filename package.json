@@ -1,11 +1,11 @@
 {
-	"name": "gistreact",
+	"name": "reactdrop",
 	"private": true,
 	"version": "0.0.0",
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
-		"build": "tsc -b && vite build",
+		"build": "tsc -b && vite build && node -e \"const fs=require('fs');const p='dist/client/reactdrop/.dev.vars';if(fs.existsSync(p))fs.unlinkSync(p)\"",
 		"lint": "eslint .",
 		"preview": "pnpm build && vite preview",
 		"deploy": "pnpm build && wrangler deploy",
@@ -98,7 +98,7 @@
 		"rollup-plugin-visualizer": "^6.0.3",
 		"typescript": "~5.8.3",
 		"typescript-eslint": "^8.35.1",
-		"vite": "^7.0.4",
+		"vite": "^7.3.1",
 		"vitest": "^3.2.4",
 		"wrangler": "^4.25.0"
 	}

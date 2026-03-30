@@ -1,3 +1,20 @@
+interface GitHubUser {
+  login: string;
+  avatar_url: string;
+  id: number;
+}
+
+async function signCookie(payload: string, secret: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(payload));
+  return btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/[+/=]/g, c =>
+    c === '+' ? '-' : c === '/' ? '_' : ''
+  );
+}
+
 interface GistFile {
   filename: string;
   content: string;
@@ -151,64 +168,136 @@ async function getStoredGist(env: Env, shareId: string): Promise<{content: strin
 }
 
 
-async function fetchGistComponent(gistId: string, _env: Env): Promise<{ content: string; filename: string; description: string } | null> {
+// Helper function: exponential backoff retry
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  initialDelay: number = 1000
+): Promise<T> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error as Error;
+
+      if (attempt < maxRetries) {
+        const delay = initialDelay * Math.pow(2, attempt); // Exponential backoff
+        console.log(`[${new Date().toISOString()}] 🔄 Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  throw lastError || new Error('Max retries exceeded');
+}
+
+// Helper function: get cached gist from stored_gists
+async function getCachedGist(env: Env, gistId: string): Promise<{ content: string; filename: string; description: string } | null> {
+  try {
+    const cached = await env.DB.prepare(`
+      SELECT content, filename, description, original_gist_id
+      FROM stored_gists
+      WHERE original_gist_id = ?
+      ORDER BY created_at DESC
+      LIMIT 1
+    `).bind(gistId).first();
+
+    if (cached) {
+      console.log(`[${new Date().toISOString()}] 💾 Found cached version for gist ${gistId}`);
+      return {
+        content: cached.content as string,
+        filename: cached.filename as string,
+        description: (cached.description as string) || 'Cached component'
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] ❌ Error fetching from cache:`, error);
+    return null;
+  }
+}
+
+async function fetchGistComponent(gistId: string, env: Env): Promise<{ content: string; filename: string; description: string; fromCache?: boolean } | null> {
   const startTime = new Date();
   const timestamp = startTime.toISOString();
-  
+
   console.log(`[${timestamp}] 🚀 Starting gist fetch for ID: ${gistId}`);
-  
+
+  // Try to fetch from GitHub with retry logic
   try {
-    // Fetch from GitHub API
-    const headers: Record<string, string> = {
-      'User-Agent': 'Mozilla/5.0 (compatible; GistReact/1.0)',
-      'Accept': 'application/vnd.github.v3+json'
-    };
-    
-    const response = await fetch(`https://api.github.com/gists/${gistId}`, { 
-      headers,
-      redirect: 'follow'
-    });
-    
-    const fetchDuration = Date.now() - startTime.getTime();
-    console.log(`[${new Date().toISOString()}] 📡 GitHub API response for ${gistId}: ${response.status} (${fetchDuration}ms)`);
-    console.log(`[${new Date().toISOString()}] 📊 Rate limit remaining: ${response.headers.get('x-ratelimit-remaining')}`);
-    console.log(`[${new Date().toISOString()}] 🔄 Rate limit reset: ${new Date(parseInt(response.headers.get('x-ratelimit-reset') || '0') * 1000).toISOString()}`);
-    
-    if (!response.ok) {
-      console.log(`[${new Date().toISOString()}] ❌ Gist fetch failed for ${gistId}: ${response.status} - ${response.statusText}`);
-      const errorText = await response.text();
-      console.log(`[${new Date().toISOString()}] 📝 Error details: ${errorText}`);
-      return null;
-    }
+    const result = await retryWithBackoff(async () => {
+      const headers: Record<string, string> = {
+        'User-Agent': 'Mozilla/5.0 (compatible; ReactDrop/1.0)',
+        'Accept': 'application/vnd.github.v3+json'
+      };
 
-    const gist: GistResponse = await response.json();
-    
-    // Find first .tsx file
-    const files = Object.values(gist.files);
-    console.log(`[${new Date().toISOString()}] 📁 Files in gist ${gistId}: [${files.map(f => f.filename).join(', ')}]`);
-    
-    const tsxFile = files.find(file => file.filename.endsWith('.tsx'));
-    
-    if (!tsxFile) {
-      console.log(`[${new Date().toISOString()}] ⚠️  No .tsx file found in gist ${gistId}`);
-      return null;
-    }
-    
-    const totalDuration = Date.now() - startTime.getTime();
-    const contentLength = tsxFile.content.length;
-    console.log(`[${new Date().toISOString()}] ✅ Successfully loaded gist ${gistId}`);
-    console.log(`[${new Date().toISOString()}] 📄 File: ${tsxFile.filename} (${contentLength} characters)`);
-    console.log(`[${new Date().toISOString()}] ⏱️  Total processing time: ${totalDuration}ms`);
-    console.log(`[${new Date().toISOString()}] 🎯 Gist created: ${gist.created_at}, updated: ${gist.updated_at}`);
+      const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+        headers,
+        redirect: 'follow'
+      });
 
-    return {
-      content: tsxFile.content,
-      filename: tsxFile.filename,
-      description: gist.description
-    };
+      const fetchDuration = Date.now() - startTime.getTime();
+      console.log(`[${new Date().toISOString()}] 📡 GitHub API response for ${gistId}: ${response.status} (${fetchDuration}ms)`);
+      console.log(`[${new Date().toISOString()}] 📊 Rate limit remaining: ${response.headers.get('x-ratelimit-remaining')}`);
+      console.log(`[${new Date().toISOString()}] 🔄 Rate limit reset: ${new Date(parseInt(response.headers.get('x-ratelimit-reset') || '0') * 1000).toISOString()}`);
+
+      if (!response.ok) {
+        console.log(`[${new Date().toISOString()}] ❌ Gist fetch failed for ${gistId}: ${response.status} - ${response.statusText}`);
+        const errorText = await response.text();
+        console.log(`[${new Date().toISOString()}] 📝 Error details: ${errorText}`);
+        throw new Error(`GitHub API error: ${response.status}`);
+      }
+
+      const gist: GistResponse = await response.json();
+
+      // Find first .tsx file
+      const files = Object.values(gist.files);
+      console.log(`[${new Date().toISOString()}] 📁 Files in gist ${gistId}: [${files.map(f => f.filename).join(', ')}]`);
+
+      const tsxFile = files.find(file => file.filename.endsWith('.tsx'));
+
+      if (!tsxFile) {
+        console.log(`[${new Date().toISOString()}] ⚠️  No .tsx file found in gist ${gistId}`);
+        throw new Error('No .tsx file found');
+      }
+
+      const totalDuration = Date.now() - startTime.getTime();
+      const contentLength = tsxFile.content.length;
+      console.log(`[${new Date().toISOString()}] ✅ Successfully loaded gist ${gistId}`);
+      console.log(`[${new Date().toISOString()}] 📄 File: ${tsxFile.filename} (${contentLength} characters)`);
+      console.log(`[${new Date().toISOString()}] ⏱️  Total processing time: ${totalDuration}ms`);
+      console.log(`[${new Date().toISOString()}] 🎯 Gist created: ${gist.created_at}, updated: ${gist.updated_at}`);
+
+      return {
+        content: tsxFile.content,
+        filename: tsxFile.filename,
+        description: gist.description,
+        fromCache: false
+      };
+    }, 3, 1000); // 3 retries with 1s initial delay
+
+    return result;
+
   } catch (error) {
     const totalDuration = Date.now() - startTime.getTime();
-    console.error(`[${new Date().toISOString()}] 💥 Fatal error fetching gist ${gistId} after ${totalDuration}ms:`, error);
+    console.error(`[${new Date().toISOString()}] 💥 GitHub fetch failed after retries for ${gistId} (${totalDuration}ms):`, error);
+
+    // Fall back to cached version
+    console.log(`[${new Date().toISOString()}] 💾 Attempting to load from cache...`);
+    const cached = await getCachedGist(env, gistId);
+
+    if (cached) {
+      console.log(`[${new Date().toISOString()}] ✅ Returning cached version for ${gistId}`);
+      return {
+        ...cached,
+        fromCache: true
+      };
+    }
+
+    console.log(`[${new Date().toISOString()}] ❌ No cached version available for ${gistId}`);
     return null;
   }
 }
@@ -287,45 +376,213 @@ export default {
     
     console.log(`[${timestamp}] 🌐 ${request.method} ${path} - IP: ${clientIP} - UA: ${userAgent.substring(0, 100)}`);
     
-    // Add no-cache headers for development
+    // Security headers applied to all responses
+    const securityHeaders = {
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
+      'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+    };
+
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       'Pragma': 'no-cache',
-      'Expires': '0'
+      'Expires': '0',
+      ...securityHeaders,
     };
 
-    // Proxy endpoint for external resources
+    // Proxy endpoint for external resources (hardened)
     if (path.startsWith("/proxy")) {
       const targetUrl = url.searchParams.get('url');
       if (!targetUrl) {
-        return Response.json({ error: 'Missing url parameter' }, { status: 400 });
+        return Response.json({ error: 'Missing url parameter' }, { status: 400, headers: securityHeaders });
+      }
+
+      // Validate URL format
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(targetUrl);
+      } catch {
+        return Response.json({ error: 'Invalid URL' }, { status: 400, headers: securityHeaders });
+      }
+
+      // Only allow HTTPS
+      if (parsedUrl.protocol !== 'https:') {
+        return Response.json({ error: 'Only HTTPS URLs are allowed' }, { status: 400, headers: securityHeaders });
+      }
+
+      // Domain allowlist for proxy
+      const ALLOWED_PROXY_DOMAINS = [
+        'cdn.tailwindcss.com',
+        'cdn.jsdelivr.net',
+        'unpkg.com',
+        'cdnjs.cloudflare.com',
+        'fonts.googleapis.com',
+        'fonts.gstatic.com',
+      ];
+      if (!ALLOWED_PROXY_DOMAINS.some(domain => parsedUrl.hostname === domain || parsedUrl.hostname.endsWith('.' + domain))) {
+        console.log(`[${new Date().toISOString()}] 🚫 Proxy blocked: ${parsedUrl.hostname} not in allowlist`);
+        return Response.json({ error: 'Domain not allowed' }, { status: 403, headers: securityHeaders });
+      }
+
+      // Block private/internal IP ranges (SSRF prevention)
+      const hostname = parsedUrl.hostname;
+      if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' ||
+          hostname.startsWith('10.') || hostname.startsWith('192.168.') ||
+          hostname.startsWith('172.16.') || hostname.startsWith('172.17.') ||
+          hostname.startsWith('172.18.') || hostname.startsWith('172.19.') ||
+          hostname.startsWith('172.2') || hostname.startsWith('172.30.') ||
+          hostname.startsWith('172.31.') || hostname === '0.0.0.0' ||
+          hostname.endsWith('.local') || hostname.endsWith('.internal')) {
+        console.log(`[${new Date().toISOString()}] 🚫 Proxy blocked SSRF attempt: ${hostname}`);
+        return Response.json({ error: 'Internal addresses not allowed' }, { status: 403, headers: securityHeaders });
       }
 
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
         const proxyResponse = await fetch(targetUrl, {
           headers: {
-            'User-Agent': 'Gist-Hoster/1.0'
-          }
+            'User-Agent': 'ReactDrop-Proxy/1.0'
+          },
+          signal: controller.signal,
         });
-        
+        clearTimeout(timeoutId);
+
+        // Limit response size to 5MB
+        const contentLength = parseInt(proxyResponse.headers.get('content-length') || '0');
+        if (contentLength > 5 * 1024 * 1024) {
+          return Response.json({ error: 'Response too large (max 5MB)' }, { status: 413, headers: securityHeaders });
+        }
+
         const response = new Response(proxyResponse.body, {
           status: proxyResponse.status,
           statusText: proxyResponse.statusText,
           headers: proxyResponse.headers
         });
-        
-        // Add CORS headers
+
+        // Add CORS and security headers
         response.headers.set('Access-Control-Allow-Origin', '*');
-        response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        
+        response.headers.set('Access-Control-Allow-Methods', 'GET');
+        response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+        response.headers.set('X-Content-Type-Options', 'nosniff');
+
         return response;
       } catch (error) {
-        return Response.json({ error: 'Proxy request failed' }, { status: 500 });
+        const errMsg = error instanceof Error ? error.message : 'Unknown error';
+        console.log(`[${new Date().toISOString()}] 💥 Proxy request failed for ${targetUrl}: ${errMsg}`);
+        return Response.json({ error: 'Proxy request failed' }, { status: 500, headers: securityHeaders });
       }
+    }
+
+    // GitHub OAuth: initiate login
+    if (path === '/api/auth/login') {
+      const redirectUri = `${url.origin}/api/auth/callback`;
+      const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${env.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=read:user`;
+      return Response.redirect(githubAuthUrl, 302);
+    }
+
+    // GitHub OAuth: callback
+    if (path === '/api/auth/callback') {
+      const code = url.searchParams.get('code');
+      if (!code) {
+        return Response.redirect(`${url.origin}/validate?auth_error=missing_code`, 302);
+      }
+
+      try {
+        // Exchange code for access token
+        const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            client_id: env.GITHUB_CLIENT_ID,
+            client_secret: env.GITHUB_CLIENT_SECRET,
+            code,
+          }),
+        });
+
+        const tokenData = await tokenResponse.json() as { access_token?: string; error?: string };
+        if (!tokenData.access_token) {
+          console.error(`[${new Date().toISOString()}] OAuth token exchange failed:`, tokenData.error);
+          return Response.redirect(`${url.origin}/validate?auth_error=token_failed`, 302);
+        }
+
+        // Fetch user info
+        const userResponse = await fetch('https://api.github.com/user', {
+          headers: {
+            'Authorization': `Bearer ${tokenData.access_token}`,
+            'User-Agent': 'ReactDrop/1.0',
+          },
+        });
+
+        const user = await userResponse.json() as GitHubUser;
+        console.log(`[${new Date().toISOString()}] ✅ OAuth login: ${user.login} (${user.id})`);
+
+        // Set user info as a signed cookie (HMAC + base64, HTTP-only)
+        const userPayload = JSON.stringify({
+          login: user.login,
+          avatar_url: user.avatar_url,
+          id: user.id,
+        });
+        const encodedUser = btoa(userPayload);
+        const signature = await signCookie(encodedUser, env.GITHUB_CLIENT_SECRET);
+
+        return new Response(null, {
+          status: 302,
+          headers: {
+            'Location': `${url.origin}/validate`,
+            'Set-Cookie': `gh_user=${encodedUser}.${signature}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800`,
+            ...securityHeaders,
+          },
+        });
+      } catch (error) {
+        console.error(`[${new Date().toISOString()}] 💥 OAuth error:`, error);
+        return Response.redirect(`${url.origin}/validate?auth_error=server_error`, 302);
+      }
+    }
+
+    // GitHub OAuth: get current user from cookie
+    if (path === '/api/auth/me') {
+      const cookie = request.headers.get('cookie') || '';
+      const match = cookie.match(/gh_user=([^;]+)/);
+      if (!match) {
+        return Response.json({ authenticated: false }, { headers: corsHeaders });
+      }
+
+      try {
+        const parts = match[1].split('.');
+        if (parts.length !== 2) {
+          return Response.json({ authenticated: false }, { headers: corsHeaders });
+        }
+        const [payload, sig] = parts;
+        const expectedSig = await signCookie(payload, env.GITHUB_CLIENT_SECRET);
+        if (sig !== expectedSig) {
+          return Response.json({ authenticated: false }, { headers: corsHeaders });
+        }
+        const user = JSON.parse(atob(payload));
+        return Response.json({ authenticated: true, user }, { headers: corsHeaders });
+      } catch {
+        return Response.json({ authenticated: false }, { headers: corsHeaders });
+      }
+    }
+
+    // GitHub OAuth: logout
+    if (path === '/api/auth/logout') {
+      return new Response(null, {
+        status: 302,
+        headers: {
+          'Location': `${url.origin}/validate`,
+          'Set-Cookie': 'gh_user=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0',
+          ...securityHeaders,
+        },
+      });
     }
 
     // API endpoints
@@ -371,6 +628,23 @@ export default {
       }
 
       return Response.json({ error: 'API endpoint not found' }, { status: 404 });
+    }
+
+    // Serve SPA for /validate route
+    if (path === '/validate') {
+      try {
+        const indexResponse = await env.ASSETS.fetch(new Request(new URL('/index.html', request.url)));
+        if (indexResponse.ok) {
+          return new Response(indexResponse.body, {
+            headers: {
+              ...Object.fromEntries(indexResponse.headers),
+              'Content-Type': 'text/html'
+            }
+          });
+        }
+      } catch (error) {
+        console.error(`[${new Date().toISOString()}] 💥 Error serving validate page:`, error);
+      }
     }
 
     // Handle shareable links with /share/ prefix
@@ -457,7 +731,8 @@ export default {
           content: component.content,
           filename: component.filename,
           gistId: gistId,
-          shareId: shareId
+          shareId: shareId,
+          fromCache: component.fromCache || false
         }, {
           headers: corsHeaders
         });

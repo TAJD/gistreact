@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "server",
+  "dolt_database": "gistreact",
+  "project_id": "fdcb063f-8163-4a52-aefa-d15c6fa08347"
+}

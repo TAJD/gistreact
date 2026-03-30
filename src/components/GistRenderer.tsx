@@ -8,6 +8,7 @@ interface GistResponse {
   gistId: string
   shareId?: string
   isShared?: boolean
+  fromCache?: boolean
 }
 
 interface GistRendererProps {
@@ -327,6 +328,11 @@ export default function App() {
           <span className="gist-id">Gist: {gistId}</span>
         </div>
       </nav>
+      {component.fromCache && (
+        <div className="cache-notice">
+          💾 Showing cached version (GitHub temporarily unavailable)
+        </div>
+      )}
       {component.shareId && <ShareableLink shareId={component.shareId} gistId={gistId} />}
       <div className={`component-container ${component.shareId ? 'with-share-link' : ''}`}>
         <Sandpack

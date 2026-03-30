@@ -7,7 +7,7 @@ function GistUrlInput() {
   const extractGistId = (gistUrl: string): string | null => {
     try {
       const patterns = [
-        /gist\.github\.com\/[^\/]+\/([a-f0-9]+)/,
+        /gist\.github\.com\/[^/]+\/([a-f0-9]+)/,
         /gist\.github\.com\/([a-f0-9]+)/,
       ]
       
@@ -83,30 +83,39 @@ export function LandingPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 5000)
+
     const loadGists = async () => {
       try {
         const [recentResponse, popularResponse] = await Promise.all([
-          fetch('/api/recent'),
-          fetch('/api/popular')
+          fetch('/api/recent', { signal: controller.signal }),
+          fetch('/api/popular', { signal: controller.signal })
         ])
 
         if (recentResponse.ok) {
-          const recent = await recentResponse.json()
-          setRecentGists(recent)
+          const contentType = recentResponse.headers.get('content-type') || ''
+          if (contentType.includes('application/json')) {
+            setRecentGists(await recentResponse.json())
+          }
         }
 
         if (popularResponse.ok) {
-          const popular = await popularResponse.json()
-          setPopularGists(popular)
+          const contentType = popularResponse.headers.get('content-type') || ''
+          if (contentType.includes('application/json')) {
+            setPopularGists(await popularResponse.json())
+          }
         }
-      } catch (error) {
-        console.error('Error loading gists:', error)
+      } catch {
+        // API unavailable - show empty state
       } finally {
+        clearTimeout(timeout)
         setLoading(false)
       }
     }
 
     loadGists()
+    return () => { controller.abort(); clearTimeout(timeout) }
   }, [])
 
   const handleGistClick = (gistId: string) => {
@@ -118,8 +127,8 @@ export function LandingPage() {
     <div className="landing-page">
       <header className="hero">
         <div className="hero-header">
-          <img src="/logo.svg" alt="GistReact" className="logo" />
-          <h1>GistReact</h1>
+          <img src="/logo.svg" alt="ReactDrop" className="logo" />
+          <h1>ReactDrop</h1>
         </div>
         <p className="hero-description">
           Host and share React components directly from GitHub Gists
@@ -172,7 +181,7 @@ export function LandingPage() {
               <div className="step-number">4</div>
               <div className="step-content">
                 <h3>🚀 Host Long-term</h3>
-                <p>Paste the Gist URL below or visit <code>gistreact.verdient.co.uk/&lt;gist-id&gt;</code> to host your component permanently</p>
+                <p>Paste the Gist URL below or visit <code>reactdrop.verdient.co.uk/&lt;gist-id&gt;</code> to host your component permanently</p>
               </div>
             </div>
           </div>
@@ -180,6 +189,19 @@ export function LandingPage() {
           <div className="workflow-benefits">
             <h3>🎯 Perfect for:</h3>
             <p>Rapid prototyping, component showcases, portfolio pieces, and client demos</p>
+          </div>
+
+          <div className="validate-cta">
+            <p>Not sure if your component will work?</p>
+            <button
+              onClick={() => {
+                window.history.pushState(null, '', '/validate')
+                window.dispatchEvent(new PopStateEvent('popstate'))
+              }}
+              className="validate-btn"
+            >
+              🔍 Validate Your Component
+            </button>
           </div>
         </section>
 
