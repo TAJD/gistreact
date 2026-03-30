@@ -47,7 +47,11 @@ jobs:
     
     - name: Install dependencies
       run: pnpm install --frozen-lockfile
-    
+
+    - name: Security audit
+      run: pnpm audit --audit-level=critical
+      continue-on-error: true # Warn but don't block on non-critical issues
+
     - name: Run TypeScript checks
       run: pnpm exec tsc --noEmit
     

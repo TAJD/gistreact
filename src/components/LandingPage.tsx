@@ -118,8 +118,8 @@ export function LandingPage() {
     <div className="landing-page">
       <header className="hero">
         <div className="hero-header">
-          <img src="/logo.svg" alt="GistReact" className="logo" />
-          <h1>GistReact</h1>
+          <img src="/logo.svg" alt="ReactDrop" className="logo" />
+          <h1>ReactDrop</h1>
         </div>
         <p className="hero-description">
           Host and share React components directly from GitHub Gists
@@ -172,7 +172,7 @@ export function LandingPage() {
               <div className="step-number">4</div>
               <div className="step-content">
                 <h3>🚀 Host Long-term</h3>
-                <p>Paste the Gist URL below or visit <code>gistreact.verdient.co.uk/&lt;gist-id&gt;</code> to host your component permanently</p>
+                <p>Paste the Gist URL below or visit <code>reactdrop.verdient.co.uk/&lt;gist-id&gt;</code> to host your component permanently</p>
               </div>
             </div>
           </div>
@@ -180,6 +180,19 @@ export function LandingPage() {
           <div className="workflow-benefits">
             <h3>🎯 Perfect for:</h3>
             <p>Rapid prototyping, component showcases, portfolio pieces, and client demos</p>
+          </div>
+
+          <div className="validate-cta">
+            <p>Not sure if your component will work?</p>
+            <button
+              onClick={() => {
+                window.history.pushState(null, '', '/validate')
+                window.dispatchEvent(new PopStateEvent('popstate'))
+              }}
+              className="validate-btn"
+            >
+              🔍 Validate Your Component
+            </button>
           </div>
         </section>
 

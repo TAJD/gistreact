@@ -1,5 +1,5 @@
 {
-	"name": "gistreact",
+	"name": "reactdrop",
 	"private": true,
 	"version": "0.0.0",
 	"type": "module",
@@ -98,7 +98,7 @@
 		"rollup-plugin-visualizer": "^6.0.3",
 		"typescript": "~5.8.3",
 		"typescript-eslint": "^8.35.1",
-		"vite": "^7.0.4",
+		"vite": "^7.3.1",
 		"vitest": "^3.2.4",
 		"wrangler": "^4.25.0"
 	}

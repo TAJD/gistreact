@@ -5,6 +5,8 @@ declare namespace Cloudflare {
 	interface Env {
 		DB: D1Database;
 		GITHUB_TOKEN: string;
+		GITHUB_CLIENT_ID: string;
+		GITHUB_CLIENT_SECRET: string;
 		ASSETS: any;
 	}
 }

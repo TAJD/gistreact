@@ -517,7 +517,7 @@ export default {
   describe('SPA Routing', () => {
     it('should serve index.html for SPA routes', async () => {
       // Mock the ASSETS binding to return index.html
-      const mockIndexHtml = '<!DOCTYPE html><html><head><title>GistReact</title></head><body><div id="root"></div></body></html>'
+      const mockIndexHtml = '<!DOCTYPE html><html><head><title>ReactDrop</title></head><body><div id="root"></div></body></html>'
       
       // Test various SPA routes
       const routes = ['/', '/some-gist-id', '/share/some-share-id', '/unknown-route']

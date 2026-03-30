@@ -1,62 +1,46 @@
 import { useState, useEffect } from 'react'
 import { GistRenderer } from './components/GistRenderer'
 import { LandingPage } from './components/LandingPage'
+import { ValidatorPage } from './components/ValidatorPage'
 import './App.css'
 
-function App() {
-  const [gistId, setGistId] = useState<string | null>(null)
+type Route = { type: 'landing' } | { type: 'validate' } | { type: 'gist'; id: string }
 
-  useEffect(() => {
-    const path = window.location.pathname
-    
-    if (path.startsWith('/share/')) {
-      // Handle shareable links like /share/my-component
-      const shareId = path.slice(7) // Remove '/share/' prefix
-      if (shareId && shareId.length > 0) {
-        setGistId(shareId)
-      } else {
-        setGistId(null)
-      }
-    } else {
-      // Handle direct gist IDs like /e41c69596e5817832dca9c1c9e217391
-      const id = path.slice(1) // Remove leading slash
-      if (id && id.length > 0 && !id.includes('/')) {
-        setGistId(id)
-      } else {
-        setGistId(null)
-      }
+function resolveRoute(path: string): Route {
+  if (path === '/validate') {
+    return { type: 'validate' }
+  }
+  if (path.startsWith('/share/')) {
+    const shareId = path.slice(7)
+    if (shareId && shareId.length > 0) {
+      return { type: 'gist', id: shareId }
     }
-  }, [])
+  } else {
+    const id = path.slice(1)
+    if (id && id.length > 0 && !id.includes('/')) {
+      return { type: 'gist', id }
+    }
+  }
+  return { type: 'landing' }
+}
+
+function App() {
+  const [route, setRoute] = useState<Route>(() => resolveRoute(window.location.pathname))
 
   useEffect(() => {
     const handlePopState = () => {
-      const path = window.location.pathname
-      
-      if (path.startsWith('/share/')) {
-        // Handle shareable links like /share/my-component
-        const shareId = path.slice(7) // Remove '/share/' prefix
-        if (shareId && shareId.length > 0) {
-          setGistId(shareId)
-        } else {
-          setGistId(null)
-        }
-      } else {
-        // Handle direct gist IDs like /e41c69596e5817832dca9c1c9e217391
-        const id = path.slice(1) // Remove leading slash
-        if (id && id.length > 0 && !id.includes('/')) {
-          setGistId(id)
-        } else {
-          setGistId(null)
-        }
-      }
+      setRoute(resolveRoute(window.location.pathname))
     }
-
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
-  if (gistId) {
-    return <GistRenderer gistId={gistId} />
+  if (route.type === 'validate') {
+    return <ValidatorPage />
+  }
+
+  if (route.type === 'gist') {
+    return <GistRenderer gistId={route.id} />
   }
 
   return <LandingPage />

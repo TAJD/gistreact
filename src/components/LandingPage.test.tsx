@@ -26,7 +26,7 @@ describe('LandingPage', () => {
   it('renders the landing page with main elements', () => {
     render(<LandingPage />)
     
-    expect(screen.getByText('GistReact')).toBeInTheDocument()
+    expect(screen.getByText('ReactDrop')).toBeInTheDocument()
     expect(screen.getByText(/Transform GitHub Gists into live React components/)).toBeInTheDocument()
     expect(screen.getByPlaceholderText(/Enter GitHub Gist URL/)).toBeInTheDocument()
   })

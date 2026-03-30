@@ -4,7 +4,7 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "gistreact",
+	"name": "reactdrop",
 	"main": "worker/index.ts",
 	"compatibility_date": "2025-07-12",
 	"observability": {
@@ -45,6 +45,14 @@
 	 * https://developers.cloudflare.com/workers/static-assets/binding/
 	 */
 	"assets": { "directory": "./dist/client/client/", "binding": "ASSETS" },
+
+	/**
+	 * Custom Domains
+	 * https://developers.cloudflare.com/workers/configuration/routing/custom-domains/
+	 */
+	"routes": [
+		{ "pattern": "reactdrop.verdient.co.uk", "custom_domain": true }
+	],
 
 	/**
 	 * Service Bindings (communicate between multiple Workers)
