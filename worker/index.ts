@@ -4,6 +4,17 @@ interface GitHubUser {
   id: number;
 }
 
+async function signCookie(payload: string, secret: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(payload));
+  return btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/[+/=]/g, c =>
+    c === '+' ? '-' : c === '/' ? '_' : ''
+  );
+}
+
 interface GistFile {
   filename: string;
   content: string;
@@ -514,19 +525,20 @@ export default {
         const user = await userResponse.json() as GitHubUser;
         console.log(`[${new Date().toISOString()}] ✅ OAuth login: ${user.login} (${user.id})`);
 
-        // Set user info as a cookie (JSON encoded, HTTP-only)
+        // Set user info as a signed cookie (HMAC + base64, HTTP-only)
         const userPayload = JSON.stringify({
           login: user.login,
           avatar_url: user.avatar_url,
           id: user.id,
         });
         const encodedUser = btoa(userPayload);
+        const signature = await signCookie(encodedUser, env.GITHUB_CLIENT_SECRET);
 
         return new Response(null, {
           status: 302,
           headers: {
             'Location': `${url.origin}/validate`,
-            'Set-Cookie': `gh_user=${encodedUser}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800`,
+            'Set-Cookie': `gh_user=${encodedUser}.${signature}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800`,
             ...securityHeaders,
           },
         });
@@ -545,7 +557,16 @@ export default {
       }
 
       try {
-        const user = JSON.parse(atob(match[1]));
+        const parts = match[1].split('.');
+        if (parts.length !== 2) {
+          return Response.json({ authenticated: false }, { headers: corsHeaders });
+        }
+        const [payload, sig] = parts;
+        const expectedSig = await signCookie(payload, env.GITHUB_CLIENT_SECRET);
+        if (sig !== expectedSig) {
+          return Response.json({ authenticated: false }, { headers: corsHeaders });
+        }
+        const user = JSON.parse(atob(payload));
         return Response.json({ authenticated: true, user }, { headers: corsHeaders });
       } catch {
         return Response.json({ authenticated: false }, { headers: corsHeaders });

@@ -1192,10 +1192,34 @@ footer p {
 @media (max-width: 768px) {
   .validator-nav {
     padding: 0.75rem 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .nav-left {
+    gap: 0.75rem;
   }
 
   .validator-title {
-    font-size: 1rem;
+    font-size: 0.95rem;
+  }
+
+  .auth-login-btn {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.75rem;
+  }
+
+  .auth-user {
+    gap: 0.5rem;
+  }
+
+  .auth-avatar {
+    width: 24px;
+    height: 24px;
+  }
+
+  .auth-username {
+    display: none;
   }
 
   .validator-content {

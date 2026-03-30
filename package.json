@@ -5,7 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
-		"build": "tsc -b && vite build",
+		"build": "tsc -b && vite build && node -e \"const fs=require('fs');const p='dist/client/reactdrop/.dev.vars';if(fs.existsSync(p))fs.unlinkSync(p)\"",
 		"lint": "eslint .",
 		"preview": "pnpm build && vite preview",
 		"deploy": "pnpm build && wrangler deploy",

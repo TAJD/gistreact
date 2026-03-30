@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
-import { GistRenderer } from './components/GistRenderer'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { LandingPage } from './components/LandingPage'
-import { ValidatorPage } from './components/ValidatorPage'
 import './App.css'
+
+const GistRenderer = lazy(() => import('./components/GistRenderer').then(m => ({ default: m.GistRenderer })))
+const ValidatorPage = lazy(() => import('./components/ValidatorPage').then(m => ({ default: m.ValidatorPage })))
 
 type Route = { type: 'landing' } | { type: 'validate' } | { type: 'gist'; id: string }
 
@@ -36,11 +37,19 @@ function App() {
   }, [])
 
   if (route.type === 'validate') {
-    return <ValidatorPage />
+    return (
+      <Suspense fallback={<div className="loading">Loading validator...</div>}>
+        <ValidatorPage />
+      </Suspense>
+    )
   }
 
   if (route.type === 'gist') {
-    return <GistRenderer gistId={route.id} />
+    return (
+      <Suspense fallback={<div className="loading">Loading component...</div>}>
+        <GistRenderer gistId={route.id} />
+      </Suspense>
+    )
   }
 
   return <LandingPage />

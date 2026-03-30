@@ -171,11 +171,11 @@ export function validateComponent(code: string): ValidationResult {
     })
   }
 
-  // Check 5: Import allowlist
-  const externalImports = imports.filter(imp => !isRelativeImport(imp))
+  // Check 5: Import allowlist (exclude forbidden imports - already caught above)
+  const externalImports = imports.filter(imp => !isRelativeImport(imp) && !FORBIDDEN_IMPORTS.has(imp))
   const unsupported = externalImports.filter(imp => {
     const pkg = getPackageName(imp)
-    return !ALLOWED_DEPENDENCIES.has(pkg) && !FORBIDDEN_IMPORTS.has(imp)
+    return !ALLOWED_DEPENDENCIES.has(pkg)
   })
   if (unsupported.length > 0) {
     checks.push({

@@ -7,7 +7,7 @@ function GistUrlInput() {
   const extractGistId = (gistUrl: string): string | null => {
     try {
       const patterns = [
-        /gist\.github\.com\/[^\/]+\/([a-f0-9]+)/,
+        /gist\.github\.com\/[^/]+\/([a-f0-9]+)/,
         /gist\.github\.com\/([a-f0-9]+)/,
       ]
       
@@ -83,30 +83,39 @@ export function LandingPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 5000)
+
     const loadGists = async () => {
       try {
         const [recentResponse, popularResponse] = await Promise.all([
-          fetch('/api/recent'),
-          fetch('/api/popular')
+          fetch('/api/recent', { signal: controller.signal }),
+          fetch('/api/popular', { signal: controller.signal })
         ])
 
         if (recentResponse.ok) {
-          const recent = await recentResponse.json()
-          setRecentGists(recent)
+          const contentType = recentResponse.headers.get('content-type') || ''
+          if (contentType.includes('application/json')) {
+            setRecentGists(await recentResponse.json())
+          }
         }
 
         if (popularResponse.ok) {
-          const popular = await popularResponse.json()
-          setPopularGists(popular)
+          const contentType = popularResponse.headers.get('content-type') || ''
+          if (contentType.includes('application/json')) {
+            setPopularGists(await popularResponse.json())
+          }
         }
-      } catch (error) {
-        console.error('Error loading gists:', error)
+      } catch {
+        // API unavailable - show empty state
       } finally {
+        clearTimeout(timeout)
         setLoading(false)
       }
     }
 
     loadGists()
+    return () => { controller.abort(); clearTimeout(timeout) }
   }, [])
 
   const handleGistClick = (gistId: string) => {
