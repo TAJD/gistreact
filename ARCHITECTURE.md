@@ -1,6 +1,6 @@
-# GistReact Architecture
+# ReactDrop Architecture
 
-This document describes the technical architecture of GistReact, a platform for hosting React components from GitHub Gists.
+This document describes the technical architecture of ReactDrop, a platform for hosting React components from GitHub Gists.
 
 ## Table of Contents
 
@@ -16,7 +16,7 @@ This document describes the technical architecture of GistReact, a platform for 
 
 ## System Overview
 
-GistReact is a full-stack application deployed on Cloudflare's edge network, combining:
+ReactDrop is a full-stack application deployed on Cloudflare's edge network, combining:
 - **Frontend**: React 19 + TypeScript + Vite (SPA)
 - **Backend**: Cloudflare Worker (edge compute)
 - **Database**: Cloudflare D1 (SQLite at the edge)
@@ -272,7 +272,7 @@ Raw TSX Code from Gist
 
 ### Sandpack Rendering
 
-GistReact uses CodeSandbox's Sandpack for secure, isolated component execution:
+ReactDrop uses CodeSandbox's Sandpack for secure, isolated component execution:
 
 ```
 ┌──────────────────────────────────────────────────────────┐

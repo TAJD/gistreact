@@ -1,6 +1,7 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { Sandpack } from '@codesandbox/sandpack-react'
 import { validateComponent, type ValidationResult } from '../utils/componentValidator'
+import { SANDPACK_DEPENDENCIES, SANDPACK_EXTERNAL_RESOURCES } from '../config/sandpackDependencies'
 
 interface GitHubUser {
   login: string
@@ -45,9 +46,9 @@ export default function Counter() {
 `
 
 function StatusIcon({ status }: { status: 'pass' | 'fail' | 'warn' }) {
-  if (status === 'pass') return <span className="check-icon pass">✓</span>
-  if (status === 'fail') return <span className="check-icon fail">✕</span>
-  return <span className="check-icon warn">⚠</span>
+  if (status === 'pass') return <span className="check-icon pass" aria-label="Passed">✓</span>
+  if (status === 'fail') return <span className="check-icon fail" aria-label="Failed">✕</span>
+  return <span className="check-icon warn" aria-label="Warning">⚠</span>
 }
 
 export function ValidatorPage() {
@@ -56,6 +57,7 @@ export function ValidatorPage() {
   const [showPreview, setShowPreview] = useState(false)
   const [user, setUser] = useState<GitHubUser | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null)
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -72,8 +74,11 @@ export function ValidatorPage() {
   const handleCodeChange = useCallback((newCode: string) => {
     setCode(newCode)
     setShowPreview(false)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
     if (newCode.trim().length > 0) {
-      setValidation(validateComponent(newCode))
+      debounceRef.current = setTimeout(() => {
+        setValidation(validateComponent(newCode))
+      }, 300)
     } else {
       setValidation(null)
     }
@@ -130,17 +135,20 @@ export default function App() {
               Load example
             </button>
           </div>
+          <label htmlFor="code-editor" className="sr-only">React component code</label>
           <textarea
+            id="code-editor"
             className="code-editor"
             value={code}
             onChange={(e) => handleCodeChange(e.target.value)}
             placeholder="Paste your React TSX component here..."
             spellCheck={false}
+            aria-describedby="validation-results"
           />
         </section>
 
         {validation && (
-          <section className="validation-section">
+          <section className="validation-section" id="validation-results" aria-live="polite">
             <h2>Validation Results</h2>
             <div className="checks-list">
               {validation.checks.map((check) => (
@@ -157,7 +165,7 @@ export default function App() {
             <div className="validation-summary">
               {validation.isDeployable ? (
                 <>
-                  <div className="summary-pass">
+                  <div className="summary-pass" role="status">
                     ✓ Component is deployable on ReactDrop
                   </div>
                   {!showPreview && (
@@ -170,7 +178,7 @@ export default function App() {
                   )}
                 </>
               ) : (
-                <div className="summary-fail">
+                <div className="summary-fail" role="alert">
                   ✕ Fix the issues above before deploying
                 </div>
               )}
@@ -185,58 +193,7 @@ export default function App() {
               <Sandpack
                 template="react-ts"
                 files={sandpackFiles}
-                customSetup={{
-                  dependencies: {
-                    'lucide-react': 'latest',
-                    '@swc/helpers': 'latest',
-                    '@radix-ui/react-accordion': 'latest',
-                    '@radix-ui/react-alert-dialog': 'latest',
-                    '@radix-ui/react-aspect-ratio': 'latest',
-                    '@radix-ui/react-avatar': 'latest',
-                    '@radix-ui/react-checkbox': 'latest',
-                    '@radix-ui/react-collapsible': 'latest',
-                    '@radix-ui/react-context-menu': 'latest',
-                    '@radix-ui/react-dialog': 'latest',
-                    '@radix-ui/react-dropdown-menu': 'latest',
-                    '@radix-ui/react-hover-card': 'latest',
-                    '@radix-ui/react-label': 'latest',
-                    '@radix-ui/react-menubar': 'latest',
-                    '@radix-ui/react-navigation-menu': 'latest',
-                    '@radix-ui/react-popover': 'latest',
-                    '@radix-ui/react-progress': 'latest',
-                    '@radix-ui/react-radio-group': 'latest',
-                    '@radix-ui/react-scroll-area': 'latest',
-                    '@radix-ui/react-select': 'latest',
-                    '@radix-ui/react-separator': 'latest',
-                    '@radix-ui/react-slider': 'latest',
-                    '@radix-ui/react-slot': 'latest',
-                    '@radix-ui/react-switch': 'latest',
-                    '@radix-ui/react-tabs': 'latest',
-                    '@radix-ui/react-toast': 'latest',
-                    '@radix-ui/react-toggle': 'latest',
-                    '@radix-ui/react-toggle-group': 'latest',
-                    '@radix-ui/react-tooltip': 'latest',
-                    'class-variance-authority': 'latest',
-                    'clsx': 'latest',
-                    'tailwind-merge': 'latest',
-                    'date-fns': 'latest',
-                    'react-day-picker': 'latest',
-                    'react-hook-form': 'latest',
-                    '@hookform/resolvers': 'latest',
-                    'zod': 'latest',
-                    'input-otp': 'latest',
-                    'embla-carousel-react': 'latest',
-                    'react-resizable-panels': 'latest',
-                    'vaul': 'latest',
-                    'cmdk': 'latest',
-                    'sonner': 'latest',
-                    'recharts': 'latest',
-                    'lodash': 'latest',
-                    'nanoid': 'latest',
-                    'framer-motion': 'latest',
-                    'next-themes': 'latest',
-                  },
-                }}
+                customSetup={{ dependencies: SANDPACK_DEPENDENCIES }}
                 options={{
                   layout: 'preview',
                   showNavigator: false,
@@ -244,7 +201,7 @@ export default function App() {
                   showLineNumbers: false,
                   autorun: true,
                   autoReload: true,
-                  externalResources: ['https://cdn.tailwindcss.com'],
+                  externalResources: SANDPACK_EXTERNAL_RESOURCES,
                 }}
               />
             </div>
