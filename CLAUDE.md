@@ -1,6 +1,42 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with the GistReact codebase.
+This file provides guidance to Claude Code (claude.ai/code) when working with the ReactDrop codebase.
+
+## Branding
+
+The project was renamed from GistReact to **ReactDrop**. The worker name in wrangler.jsonc is `reactdrop`.
+The custom domain is `reactdrop.verdient.co.uk`. Do not use "GistReact" in any new code or content.
+
+## OAuth
+
+GitHub OAuth credentials are stored as Cloudflare Worker secrets (not in code):
+- `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` set via `npx wrangler secret put`
+- Local dev uses `.dev.vars` (gitignored) - Wrangler reads this automatically
+- OAuth cookies are HMAC-signed using `crypto.subtle` with the client secret
+
+## Deployment
+
+```bash
+# Deploy to Cloudflare Workers (builds first, cleans .dev.vars from output)
+pnpm deploy
+
+# Store a secret on the deployed worker
+echo "value" | npx wrangler secret put SECRET_NAME
+```
+
+**Windows Git Bash gotcha:** Prefix wrangler/gh API commands with `MSYS_NO_PATHCONV=1` to prevent path mangling (e.g., `/user` becoming `C:/Program Files/Git/user`).
+
+## Validator Feature
+
+- Route: `/validate` - code-split with lazy import
+- Validation logic: `src/utils/componentValidator.ts` (5 client-side checks)
+- Sandpack preview reuses the same dependency config as GistRenderer
+- Auth state shown in validator nav (GitHub avatar + username)
+
+## Code Splitting
+
+GistRenderer and ValidatorPage use `React.lazy()` + `Suspense` in App.tsx.
+The landing page loads eagerly since it's the most common entry point.
 
 ## Development Commands
 

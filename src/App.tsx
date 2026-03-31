@@ -1,5 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { LandingPage } from './components/LandingPage'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import './App.css'
 
 const GistRenderer = lazy(() => import('./components/GistRenderer').then(m => ({ default: m.GistRenderer })))
@@ -36,23 +37,21 @@ function App() {
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
-  if (route.type === 'validate') {
-    return (
-      <Suspense fallback={<div className="loading">Loading validator...</div>}>
-        <ValidatorPage />
-      </Suspense>
-    )
-  }
-
-  if (route.type === 'gist') {
-    return (
-      <Suspense fallback={<div className="loading">Loading component...</div>}>
-        <GistRenderer gistId={route.id} />
-      </Suspense>
-    )
-  }
-
-  return <LandingPage />
+  return (
+    <ErrorBoundary>
+      {route.type === 'validate' ? (
+        <Suspense fallback={<div className="loading" aria-live="polite">Loading validator...</div>}>
+          <ValidatorPage />
+        </Suspense>
+      ) : route.type === 'gist' ? (
+        <Suspense fallback={<div className="loading" aria-live="polite">Loading component...</div>}>
+          <GistRenderer gistId={route.id} />
+        </Suspense>
+      ) : (
+        <LandingPage />
+      )}
+    </ErrorBoundary>
+  )
 }
 
 export default App

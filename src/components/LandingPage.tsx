@@ -64,7 +64,7 @@ function GistUrlInput() {
             View Component
           </button>
         </div>
-        {error && <div className="url-error">{error}</div>}
+        {error && <div className="url-error" role="alert">{error}</div>}
       </form>
     </div>
   )
@@ -302,7 +302,7 @@ export function LandingPage() {
         <GistUrlInput />
 
         {loading ? (
-          <div className="loading">Loading gists...</div>
+          <div className="loading" aria-live="polite" aria-busy="true">Loading gists...</div>
         ) : (
           <div className="gist-sections">
             <section className="gist-list">

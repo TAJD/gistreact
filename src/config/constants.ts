@@ -1,0 +1,13 @@
+export const MAX_CODE_SIZE_BYTES = 50 * 1024 // 50KB
+export const VALIDATION_DEBOUNCE_MS = 300
+export const API_TIMEOUT_MS = 5000
+export const GIST_FETCH_TIMEOUT_MS = 15000
+export const PROXY_TIMEOUT_MS = 10000
+export const PROXY_MAX_RESPONSE_BYTES = 5 * 1024 * 1024 // 5MB
+export const SHARE_ID_MIN_LENGTH = 3
+export const SHARE_ID_MAX_LENGTH = 50
+export const SHARE_ID_PATTERN = /^[a-zA-Z0-9-_]+$/
+export const GIST_ID_PATTERN = /^[a-fA-F0-9]{32}$/
+export const COOKIE_MAX_AGE_SECONDS = 604800 // 7 days
+export const RETRY_MAX_ATTEMPTS = 3
+export const RETRY_INITIAL_DELAY_MS = 1000

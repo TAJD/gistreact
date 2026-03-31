@@ -4,6 +4,11 @@ interface GitHubUser {
   id: number;
 }
 
+const log = {
+  info: (_msg: string): void => {},
+  error: (_msg: string, _err?: unknown): void => {},
+}
+
 async function signCookie(payload: string, secret: string): Promise<string> {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
@@ -49,7 +54,7 @@ async function storeGistForSharing(env: Env, gistId: string, filename: string, c
     `).bind(gistId, filename).first();
     
     if (existing) {
-      console.log(`[${timestamp}] 🔗 Using existing share ID for ${gistId}/${filename}: ${existing.share_id}`);
+      log.info(`[${timestamp}] 🔗 Using existing share ID for ${gistId}/${filename}: ${existing.share_id}`);
       return existing.share_id as string;
     }
     
@@ -69,7 +74,7 @@ async function storeGistForSharing(env: Env, gistId: string, filename: string, c
     }
     
     if (attempts >= 10) {
-      console.error(`[${timestamp}] 💥 Could not generate unique share ID after 10 attempts`);
+      log.error(`[${timestamp}] 💥 Could not generate unique share ID after 10 attempts`);
       throw new Error('Could not generate unique share ID');
     }
     
@@ -79,10 +84,10 @@ async function storeGistForSharing(env: Env, gistId: string, filename: string, c
       VALUES (?, ?, ?, ?, ?)
     `).bind(shareId, gistId, filename, content, description).run();
     
-    console.log(`[${timestamp}] ✅ Stored gist ${gistId}/${filename} with share ID: ${shareId}`);
+    log.info(`[${timestamp}] ✅ Stored gist ${gistId}/${filename} with share ID: ${shareId}`);
     return shareId;
   } catch (error) {
-    console.error(`[${timestamp}] 💥 Error storing gist for sharing:`, error);
+    log.error(`[${timestamp}] 💥 Error storing gist for sharing:`, error);
     throw error;
   }
 }
@@ -121,14 +126,14 @@ async function updateShareId(env: Env, gistId: string, filename: string, oldShar
     `).bind(newShareId, gistId, filename, oldShareId).run();
     
     if (!result.success || result.meta.changes === 0) {
-      console.log(`[${timestamp}] 🚫 No rows updated for ${gistId}/${filename} ${oldShareId} -> ${newShareId}`);
+      log.info(`[${timestamp}] 🚫 No rows updated for ${gistId}/${filename} ${oldShareId} -> ${newShareId}`);
       throw new Error('Share ID not found or could not be updated');
     }
     
-    console.log(`[${timestamp}] ✅ Updated share ID for ${gistId}/${filename}: ${oldShareId} -> ${newShareId}`);
+    log.info(`[${timestamp}] ✅ Updated share ID for ${gistId}/${filename}: ${oldShareId} -> ${newShareId}`);
     return true;
   } catch (error) {
-    console.error(`[${timestamp}] 💥 Error updating share ID:`, error);
+    log.error(`[${timestamp}] 💥 Error updating share ID:`, error);
     throw error;
   }
 }
@@ -144,7 +149,7 @@ async function getStoredGist(env: Env, shareId: string): Promise<{content: strin
     `).bind(shareId).first();
     
     if (!result) {
-      console.log(`[${timestamp}] 🚫 No stored gist found for share ID: ${shareId}`);
+      log.info(`[${timestamp}] 🚫 No stored gist found for share ID: ${shareId}`);
       return null;
     }
     
@@ -155,14 +160,14 @@ async function getStoredGist(env: Env, shareId: string): Promise<{content: strin
       WHERE share_id = ?
     `).bind(shareId).run();
     
-    console.log(`[${timestamp}] 🎯 Retrieved stored gist for share ID: ${shareId}`);
+    log.info(`[${timestamp}] 🎯 Retrieved stored gist for share ID: ${shareId}`);
     return {
       content: result.content as string,
       filename: result.filename as string,
       originalGistId: result.original_gist_id as string
     };
   } catch (error) {
-    console.error(`[${timestamp}] 💥 Error retrieving stored gist:`, error);
+    log.error(`[${timestamp}] 💥 Error retrieving stored gist:`, error);
     return null;
   }
 }
@@ -184,7 +189,7 @@ async function retryWithBackoff<T>(
 
       if (attempt < maxRetries) {
         const delay = initialDelay * Math.pow(2, attempt); // Exponential backoff
-        console.log(`[${new Date().toISOString()}] 🔄 Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms`);
+        log.info(`[${new Date().toISOString()}] 🔄 Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
@@ -205,7 +210,7 @@ async function getCachedGist(env: Env, gistId: string): Promise<{ content: strin
     `).bind(gistId).first();
 
     if (cached) {
-      console.log(`[${new Date().toISOString()}] 💾 Found cached version for gist ${gistId}`);
+      log.info(`[${new Date().toISOString()}] 💾 Found cached version for gist ${gistId}`);
       return {
         content: cached.content as string,
         filename: cached.filename as string,
@@ -215,7 +220,7 @@ async function getCachedGist(env: Env, gistId: string): Promise<{ content: strin
 
     return null;
   } catch (error) {
-    console.error(`[${new Date().toISOString()}] ❌ Error fetching from cache:`, error);
+    log.error(`[${new Date().toISOString()}] ❌ Error fetching from cache:`, error);
     return null;
   }
 }
@@ -224,7 +229,7 @@ async function fetchGistComponent(gistId: string, env: Env): Promise<{ content: 
   const startTime = new Date();
   const timestamp = startTime.toISOString();
 
-  console.log(`[${timestamp}] 🚀 Starting gist fetch for ID: ${gistId}`);
+  log.info(`[${timestamp}] 🚀 Starting gist fetch for ID: ${gistId}`);
 
   // Try to fetch from GitHub with retry logic
   try {
@@ -234,20 +239,17 @@ async function fetchGistComponent(gistId: string, env: Env): Promise<{ content: 
         'Accept': 'application/vnd.github.v3+json'
       };
 
+      const fetchController = new AbortController();
+      const fetchTimeout = setTimeout(() => fetchController.abort(), 15000);
+
       const response = await fetch(`https://api.github.com/gists/${gistId}`, {
         headers,
-        redirect: 'follow'
+        redirect: 'follow',
+        signal: fetchController.signal,
       });
-
-      const fetchDuration = Date.now() - startTime.getTime();
-      console.log(`[${new Date().toISOString()}] 📡 GitHub API response for ${gistId}: ${response.status} (${fetchDuration}ms)`);
-      console.log(`[${new Date().toISOString()}] 📊 Rate limit remaining: ${response.headers.get('x-ratelimit-remaining')}`);
-      console.log(`[${new Date().toISOString()}] 🔄 Rate limit reset: ${new Date(parseInt(response.headers.get('x-ratelimit-reset') || '0') * 1000).toISOString()}`);
+      clearTimeout(fetchTimeout);
 
       if (!response.ok) {
-        console.log(`[${new Date().toISOString()}] ❌ Gist fetch failed for ${gistId}: ${response.status} - ${response.statusText}`);
-        const errorText = await response.text();
-        console.log(`[${new Date().toISOString()}] 📝 Error details: ${errorText}`);
         throw new Error(`GitHub API error: ${response.status}`);
       }
 
@@ -255,21 +257,21 @@ async function fetchGistComponent(gistId: string, env: Env): Promise<{ content: 
 
       // Find first .tsx file
       const files = Object.values(gist.files);
-      console.log(`[${new Date().toISOString()}] 📁 Files in gist ${gistId}: [${files.map(f => f.filename).join(', ')}]`);
+      log.info(`[${new Date().toISOString()}] 📁 Files in gist ${gistId}: [${files.map(f => f.filename).join(', ')}]`);
 
       const tsxFile = files.find(file => file.filename.endsWith('.tsx'));
 
       if (!tsxFile) {
-        console.log(`[${new Date().toISOString()}] ⚠️  No .tsx file found in gist ${gistId}`);
+        log.info(`[${new Date().toISOString()}] ⚠️  No .tsx file found in gist ${gistId}`);
         throw new Error('No .tsx file found');
       }
 
       const totalDuration = Date.now() - startTime.getTime();
       const contentLength = tsxFile.content.length;
-      console.log(`[${new Date().toISOString()}] ✅ Successfully loaded gist ${gistId}`);
-      console.log(`[${new Date().toISOString()}] 📄 File: ${tsxFile.filename} (${contentLength} characters)`);
-      console.log(`[${new Date().toISOString()}] ⏱️  Total processing time: ${totalDuration}ms`);
-      console.log(`[${new Date().toISOString()}] 🎯 Gist created: ${gist.created_at}, updated: ${gist.updated_at}`);
+      log.info(`[${new Date().toISOString()}] ✅ Successfully loaded gist ${gistId}`);
+      log.info(`[${new Date().toISOString()}] 📄 File: ${tsxFile.filename} (${contentLength} characters)`);
+      log.info(`[${new Date().toISOString()}] ⏱️  Total processing time: ${totalDuration}ms`);
+      log.info(`[${new Date().toISOString()}] 🎯 Gist created: ${gist.created_at}, updated: ${gist.updated_at}`);
 
       return {
         content: tsxFile.content,
@@ -283,21 +285,21 @@ async function fetchGistComponent(gistId: string, env: Env): Promise<{ content: 
 
   } catch (error) {
     const totalDuration = Date.now() - startTime.getTime();
-    console.error(`[${new Date().toISOString()}] 💥 GitHub fetch failed after retries for ${gistId} (${totalDuration}ms):`, error);
+    log.error(`[${new Date().toISOString()}] 💥 GitHub fetch failed after retries for ${gistId} (${totalDuration}ms):`, error);
 
     // Fall back to cached version
-    console.log(`[${new Date().toISOString()}] 💾 Attempting to load from cache...`);
+    log.info(`[${new Date().toISOString()}] 💾 Attempting to load from cache...`);
     const cached = await getCachedGist(env, gistId);
 
     if (cached) {
-      console.log(`[${new Date().toISOString()}] ✅ Returning cached version for ${gistId}`);
+      log.info(`[${new Date().toISOString()}] ✅ Returning cached version for ${gistId}`);
       return {
         ...cached,
         fromCache: true
       };
     }
 
-    console.log(`[${new Date().toISOString()}] ❌ No cached version available for ${gistId}`);
+    log.info(`[${new Date().toISOString()}] ❌ No cached version available for ${gistId}`);
     return null;
   }
 }
@@ -307,7 +309,7 @@ async function updateAnalytics(env: Env, gistId: string, filename: string, succe
   
   try {
     if (success) {
-      console.log(`[${timestamp}] 📈 Recording successful view for ${gistId}/${filename}`);
+      log.info(`[${timestamp}] 📈 Recording successful view for ${gistId}/${filename}`);
       await env.DB.prepare(`
         INSERT INTO gist_analytics (gist_id, filename, view_count)
         VALUES (?, ?, 1)
@@ -315,9 +317,9 @@ async function updateAnalytics(env: Env, gistId: string, filename: string, succe
           view_count = view_count + 1,
           last_accessed_at = CURRENT_TIMESTAMP
       `).bind(gistId, filename).run();
-      console.log(`[${timestamp}] ✅ Analytics updated successfully for ${gistId}/${filename}`);
+      log.info(`[${timestamp}] ✅ Analytics updated successfully for ${gistId}/${filename}`);
     } else {
-      console.log(`[${timestamp}] 📉 Recording error for ${gistId}/${filename}: ${error}`);
+      log.info(`[${timestamp}] 📉 Recording error for ${gistId}/${filename}: ${error}`);
       await env.DB.prepare(`
         INSERT INTO gist_analytics (gist_id, filename, view_count, error_count, last_error)
         VALUES (?, ?, 0, 1, ?)
@@ -326,10 +328,10 @@ async function updateAnalytics(env: Env, gistId: string, filename: string, succe
           last_error = ?,
           last_accessed_at = CURRENT_TIMESTAMP
       `).bind(gistId, filename, error, error).run();
-      console.log(`[${timestamp}] ⚠️  Error analytics updated for ${gistId}/${filename}`);
+      log.info(`[${timestamp}] ⚠️  Error analytics updated for ${gistId}/${filename}`);
     }
   } catch (dbError) {
-    console.error(`[${timestamp}] 💥 Database error for ${gistId}/${filename}:`, dbError);
+    log.error(`[${timestamp}] 💥 Database error for ${gistId}/${filename}:`, dbError);
   }
 }
 
@@ -344,7 +346,7 @@ async function getRecentGists(env: Env, limit: number = 10) {
     `).bind(limit).all();
     return result.results;
   } catch (error) {
-    console.error('Database error:', error);
+    log.error('Database error:', error);
     return [];
   }
 }
@@ -360,7 +362,7 @@ async function getPopularGists(env: Env, limit: number = 10) {
     `).bind(limit).all();
     return result.results;
   } catch (error) {
-    console.error('Database error:', error);
+    log.error('Database error:', error);
     return [];
   }
 }
@@ -374,7 +376,7 @@ export default {
     const userAgent = request.headers.get('user-agent') || 'unknown';
     const clientIP = request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || 'unknown';
     
-    console.log(`[${timestamp}] 🌐 ${request.method} ${path} - IP: ${clientIP} - UA: ${userAgent.substring(0, 100)}`);
+    log.info(`[${timestamp}] 🌐 ${request.method} ${path} - IP: ${clientIP} - UA: ${userAgent.substring(0, 100)}`);
     
     // Security headers applied to all responses
     const securityHeaders = {
@@ -424,7 +426,7 @@ export default {
         'fonts.gstatic.com',
       ];
       if (!ALLOWED_PROXY_DOMAINS.some(domain => parsedUrl.hostname === domain || parsedUrl.hostname.endsWith('.' + domain))) {
-        console.log(`[${new Date().toISOString()}] 🚫 Proxy blocked: ${parsedUrl.hostname} not in allowlist`);
+        log.info(`[${new Date().toISOString()}] 🚫 Proxy blocked: ${parsedUrl.hostname} not in allowlist`);
         return Response.json({ error: 'Domain not allowed' }, { status: 403, headers: securityHeaders });
       }
 
@@ -437,7 +439,7 @@ export default {
           hostname.startsWith('172.2') || hostname.startsWith('172.30.') ||
           hostname.startsWith('172.31.') || hostname === '0.0.0.0' ||
           hostname.endsWith('.local') || hostname.endsWith('.internal')) {
-        console.log(`[${new Date().toISOString()}] 🚫 Proxy blocked SSRF attempt: ${hostname}`);
+        log.info(`[${new Date().toISOString()}] 🚫 Proxy blocked SSRF attempt: ${hostname}`);
         return Response.json({ error: 'Internal addresses not allowed' }, { status: 403, headers: securityHeaders });
       }
 
@@ -474,23 +476,35 @@ export default {
         return response;
       } catch (error) {
         const errMsg = error instanceof Error ? error.message : 'Unknown error';
-        console.log(`[${new Date().toISOString()}] 💥 Proxy request failed for ${targetUrl}: ${errMsg}`);
+        log.info(`[${new Date().toISOString()}] 💥 Proxy request failed for ${targetUrl}: ${errMsg}`);
         return Response.json({ error: 'Proxy request failed' }, { status: 500, headers: securityHeaders });
       }
     }
 
-    // GitHub OAuth: initiate login
+    // GitHub OAuth: initiate login (with CSRF state parameter)
     if (path === '/api/auth/login') {
+      const state = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(24))));
       const redirectUri = `${url.origin}/api/auth/callback`;
-      const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${env.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=read:user`;
-      return Response.redirect(githubAuthUrl, 302);
+      const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${env.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=read:user&state=${state}`;
+      return new Response(null, {
+        status: 302,
+        headers: {
+          'Location': githubAuthUrl,
+          'Set-Cookie': `oauth_state=${state}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`,
+          ...securityHeaders,
+        },
+      });
     }
 
-    // GitHub OAuth: callback
+    // GitHub OAuth: callback (verify CSRF state)
     if (path === '/api/auth/callback') {
       const code = url.searchParams.get('code');
-      if (!code) {
-        return Response.redirect(`${url.origin}/validate?auth_error=missing_code`, 302);
+      const state = url.searchParams.get('state');
+      const cookie = request.headers.get('cookie') || '';
+      const stateMatch = cookie.match(/oauth_state=([^;]+)/);
+
+      if (!code || !state || !stateMatch || stateMatch[1] !== state) {
+        return Response.redirect(`${url.origin}/validate?auth_error=invalid_state`, 302);
       }
 
       try {
@@ -510,7 +524,7 @@ export default {
 
         const tokenData = await tokenResponse.json() as { access_token?: string; error?: string };
         if (!tokenData.access_token) {
-          console.error(`[${new Date().toISOString()}] OAuth token exchange failed:`, tokenData.error);
+          log.error(`[${new Date().toISOString()}] OAuth token exchange failed:`, tokenData.error);
           return Response.redirect(`${url.origin}/validate?auth_error=token_failed`, 302);
         }
 
@@ -523,7 +537,7 @@ export default {
         });
 
         const user = await userResponse.json() as GitHubUser;
-        console.log(`[${new Date().toISOString()}] ✅ OAuth login: ${user.login} (${user.id})`);
+        log.info(`[${new Date().toISOString()}] ✅ OAuth login: ${user.login} (${user.id})`);
 
         // Set user info as a signed cookie (HMAC + base64, HTTP-only)
         const userPayload = JSON.stringify({
@@ -543,7 +557,7 @@ export default {
           },
         });
       } catch (error) {
-        console.error(`[${new Date().toISOString()}] 💥 OAuth error:`, error);
+        log.error(`[${new Date().toISOString()}] 💥 OAuth error:`, error);
         return Response.redirect(`${url.origin}/validate?auth_error=server_error`, 302);
       }
     }
@@ -618,11 +632,11 @@ export default {
           
           await updateShareId(env, gistId, stored.filename as string, oldShareId, newShareId);
           
-          console.log(`[${new Date().toISOString()}] ✅ Successfully updated share ID: ${oldShareId} -> ${newShareId}`);
+          log.info(`[${new Date().toISOString()}] ✅ Successfully updated share ID: ${oldShareId} -> ${newShareId}`);
           return Response.json({ success: true, newShareId }, { headers: corsHeaders });
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-          console.error(`[${new Date().toISOString()}] 💥 Update share ID failed:`, errorMessage);
+          log.error(`[${new Date().toISOString()}] 💥 Update share ID failed:`, errorMessage);
           return Response.json({ error: errorMessage }, { status: 400 });
         }
       }
@@ -643,14 +657,14 @@ export default {
           });
         }
       } catch (error) {
-        console.error(`[${new Date().toISOString()}] 💥 Error serving validate page:`, error);
+        log.error(`[${new Date().toISOString()}] 💥 Error serving validate page:`, error);
       }
     }
 
     // Handle shareable links with /share/ prefix
     if (path.startsWith('/share/')) {
       const shareId = path.slice(7); // Remove '/share/' prefix
-      console.log(`[${new Date().toISOString()}] 🔗 Processing share request for: ${shareId}`);
+      log.info(`[${new Date().toISOString()}] 🔗 Processing share request for: ${shareId}`);
       
       if (shareId && shareId.length >= 3 && shareId.length <= 50 && /^[a-zA-Z0-9-_]+$/.test(shareId)) {
         // Check Accept header to see if API request or browser visit
@@ -662,14 +676,14 @@ export default {
           const storedGist = await getStoredGist(env, shareId);
           
           if (!storedGist) {
-            console.log(`[${new Date().toISOString()}] 🚫 Share ID ${shareId} not found`);
+            log.info(`[${new Date().toISOString()}] 🚫 Share ID ${shareId} not found`);
             const duration = Date.now() - requestStart.getTime();
-            console.log(`[${new Date().toISOString()}] ⏱️  Request completed in ${duration}ms (404)`);
+            log.info(`[${new Date().toISOString()}] ⏱️  Request completed in ${duration}ms (404)`);
             return Response.json({ error: 'Shared component not found' }, { status: 404 });
           }
           
           const duration = Date.now() - requestStart.getTime();
-          console.log(`[${new Date().toISOString()}] 🎉 Successfully served stored gist ${shareId} in ${duration}ms`);
+          log.info(`[${new Date().toISOString()}] 🎉 Successfully served stored gist ${shareId} in ${duration}ms`);
           
           return Response.json({
             content: storedGist.content,
@@ -682,14 +696,14 @@ export default {
           });
         }
         // For browser visits to share URLs, serve the React app (fall through)
-        console.log(`[${new Date().toISOString()}] 🌐 Direct browser visit to share ${shareId} - serving React app`);
+        log.info(`[${new Date().toISOString()}] 🌐 Direct browser visit to share ${shareId} - serving React app`);
       }
     }
 
     // Handle direct gist IDs or any other SPA routes
     const pathId = path.slice(1); // Remove leading slash
-    if (pathId && pathId.length > 0 && !pathId.includes('/') && pathId.length >= 32 && /^[a-fA-F0-9]+$/.test(pathId)) {
-      console.log(`[${new Date().toISOString()}] 🎯 Processing gist request for: ${pathId}`);
+    if (pathId && pathId.length >= 32 && /^[a-fA-F0-9]+$/.test(pathId)) {
+      log.info(`[${new Date().toISOString()}] 🎯 Processing gist request for: ${pathId}`);
       
       const gistId = pathId;
       
@@ -698,17 +712,17 @@ export default {
       const isApiRequest = acceptHeader.includes('application/json') || 
                           request.headers.get('x-requested-with') === 'XMLHttpRequest';
       
-      console.log(`[${new Date().toISOString()}] 📝 Request type: ${isApiRequest ? 'API' : 'Browser'} (Accept: ${acceptHeader})`);
+      log.info(`[${new Date().toISOString()}] 📝 Request type: ${isApiRequest ? 'API' : 'Browser'} (Accept: ${acceptHeader})`);
       
       if (isApiRequest) {
         // This is an API request from the React app - return JSON data
         const component = await fetchGistComponent(gistId, env);
         
         if (!component) {
-          console.log(`[${new Date().toISOString()}] 🚫 Gist ${gistId} not found or invalid`);
+          log.info(`[${new Date().toISOString()}] 🚫 Gist ${gistId} not found or invalid`);
           await updateAnalytics(env, gistId, 'unknown', false, 'Gist not found or no .tsx file');
           const duration = Date.now() - requestStart.getTime();
-          console.log(`[${new Date().toISOString()}] ⏱️  Request completed in ${duration}ms (404)`);
+          log.info(`[${new Date().toISOString()}] ⏱️  Request completed in ${duration}ms (404)`);
           return Response.json({ error: 'Gist not found or does not contain a .tsx file' }, { status: 404 });
         }
 
@@ -716,16 +730,16 @@ export default {
         let shareId: string | null = null;
         try {
           shareId = await storeGistForSharing(env, gistId, component.filename, component.content, component.description || '');
-          console.log(`[${new Date().toISOString()}] 🔗 Generated share ID for ${gistId}: ${shareId}`);
+          log.info(`[${new Date().toISOString()}] 🔗 Generated share ID for ${gistId}: ${shareId}`);
         } catch (error) {
-          console.error(`[${new Date().toISOString()}] ⚠️  Failed to generate share ID for ${gistId}:`, error);
+          log.error(`[${new Date().toISOString()}] ⚠️  Failed to generate share ID for ${gistId}:`, error);
           // Continue without share ID - not critical
         }
 
         await updateAnalytics(env, gistId, component.filename, true);
         
         const duration = Date.now() - requestStart.getTime();
-        console.log(`[${new Date().toISOString()}] 🎉 Successfully served gist ${gistId}/${component.filename} in ${duration}ms`);
+        log.info(`[${new Date().toISOString()}] 🎉 Successfully served gist ${gistId}/${component.filename} in ${duration}ms`);
         
         return Response.json({
           content: component.content,
@@ -738,14 +752,14 @@ export default {
         });
       }
       // For direct browser visits to gist URLs, fall through to serve SPA
-      console.log(`[${new Date().toISOString()}] 🌐 Direct browser visit to gist ${gistId} - serving React app`);
+      log.info(`[${new Date().toISOString()}] 🌐 Direct browser visit to gist ${gistId} - serving React app`);
     }
 
     // For any other routes that might be SPA routes, serve index.html
     try {
       const indexResponse = await env.ASSETS.fetch(new Request(new URL('/index.html', request.url)));
       if (indexResponse.ok) {
-        console.log(`[${new Date().toISOString()}] 🌐 Serving index.html for SPA route: ${path}`);
+        log.info(`[${new Date().toISOString()}] 🌐 Serving index.html for SPA route: ${path}`);
         return new Response(indexResponse.body, {
           headers: {
             ...Object.fromEntries(indexResponse.headers),
@@ -754,22 +768,22 @@ export default {
         });
       }
     } catch (error) {
-      console.error(`[${new Date().toISOString()}] 💥 Error serving index.html for route ${path}:`, error);
+      log.error(`[${new Date().toISOString()}] 💥 Error serving index.html for route ${path}:`, error);
     }
     
     // Last resort - try to serve the requested asset directly
     try {
       const assetResponse = await env.ASSETS.fetch(request);
       if (assetResponse.ok) {
-        console.log(`[${new Date().toISOString()}] 📁 Served static asset: ${path}`);
+        log.info(`[${new Date().toISOString()}] 📁 Served static asset: ${path}`);
         return assetResponse;
       }
     } catch (error) {
-      console.error(`[${new Date().toISOString()}] 💥 Error serving static asset ${path}:`, error);
+      log.error(`[${new Date().toISOString()}] 💥 Error serving static asset ${path}:`, error);
     }
     
     const duration = Date.now() - requestStart.getTime();
-    console.log(`[${new Date().toISOString()}] 🚫 Route not found: ${path} (${duration}ms)`);
+    log.info(`[${new Date().toISOString()}] 🚫 Route not found: ${path} (${duration}ms)`);
     
     return new Response('Not Found', { status: 404 });
   },
