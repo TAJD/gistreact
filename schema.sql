@@ -32,3 +32,12 @@ CREATE TABLE IF NOT EXISTS stored_gists (
 
 CREATE INDEX idx_stored_gists_share_id ON stored_gists(share_id);
 CREATE INDEX idx_stored_gists_original_gist_id ON stored_gists(original_gist_id);
+
+-- Rate Limiting
+CREATE TABLE IF NOT EXISTS rate_limits (
+    ip TEXT NOT NULL,
+    endpoint TEXT NOT NULL,
+    window_start INTEGER NOT NULL,
+    request_count INTEGER DEFAULT 1,
+    PRIMARY KEY (ip, endpoint, window_start)
+);

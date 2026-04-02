@@ -150,6 +150,7 @@ export function GistRenderer({ gistId }: GistRendererProps) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [isHeaderVisible, setIsHeaderVisible] = useState(true)
+  const [showCode, setShowCode] = useState(false)
   const lastScrollY = useRef(0)
   const headerRef = useRef<HTMLElement>(null)
 
@@ -335,6 +336,14 @@ export default function App() {
           <button onClick={handleRefresh} className="refresh-btn" aria-label="Refresh component" title="Re-fetch from GitHub">
             ↻
           </button>
+          <button
+            onClick={() => setShowCode(!showCode)}
+            className={`code-toggle-btn ${showCode ? 'active' : ''}`}
+            aria-label={showCode ? 'Hide code' : 'Show code'}
+            title={showCode ? 'Hide code' : 'Show code'}
+          >
+            {showCode ? '⟨/⟩' : '⟨⟩'}
+          </button>
         </div>
       </nav>
       {component.fromCache && (
@@ -343,16 +352,15 @@ export default function App() {
         </div>
       )}
       {component.shareId && <ShareableLink shareId={component.shareId} gistId={gistId} />}
-      <div className={`component-container ${component.shareId ? 'with-share-link' : ''}`}>
+      <div className={`component-container ${component.shareId ? 'with-share-link' : ''} ${showCode ? 'show-code' : ''}`}>
         <Sandpack
           template="react-ts"
           files={files}
           customSetup={{ dependencies: SANDPACK_DEPENDENCIES }}
           options={{
-            layout: 'preview',
             showNavigator: false,
-            showTabs: false,
-            showLineNumbers: false,
+            showTabs: showCode,
+            showLineNumbers: showCode,
             autorun: true,
             autoReload: true,
             externalResources: SANDPACK_EXTERNAL_RESOURCES,

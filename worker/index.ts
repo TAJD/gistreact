@@ -9,6 +9,50 @@ const log = {
   error: (_msg: string, _err?: unknown): void => {},
 }
 
+async function checkRateLimit(
+  env: Env,
+  clientIP: string,
+  endpoint: string,
+  maxRequests: number = 60,
+  windowSeconds: number = 60
+): Promise<{ allowed: boolean; remaining: number }> {
+  try {
+    const now = Math.floor(Date.now() / (windowSeconds * 1000));
+
+    // Upsert into rate_limits table
+    await env.DB.prepare(`
+      INSERT INTO rate_limits (ip, endpoint, window_start, request_count)
+      VALUES (?, ?, ?, 1)
+      ON CONFLICT(ip, endpoint, window_start) DO UPDATE SET
+        request_count = request_count + 1
+    `).bind(clientIP, endpoint, now).run();
+
+    // Get current count for this window
+    const record = await env.DB.prepare(`
+      SELECT request_count FROM rate_limits
+      WHERE ip = ? AND endpoint = ? AND window_start = ?
+    `).bind(clientIP, endpoint, now).first();
+
+    const currentCount = (record?.request_count as number) || 1;
+    const allowed = currentCount <= maxRequests;
+    const remaining = Math.max(0, maxRequests - currentCount);
+
+    // Cleanup old entries occasionally (1% of requests)
+    if (Math.random() < 0.01) {
+      const cutoffWindow = now - 5;
+      await env.DB.prepare(`
+        DELETE FROM rate_limits WHERE window_start < ?
+      `).bind(cutoffWindow).run();
+    }
+
+    return { allowed, remaining };
+  } catch (error) {
+    // Silently allow if DB fails - don't block users on rate limit DB errors
+    log.error('Rate limit check failed:', error);
+    return { allowed: true, remaining: maxRequests };
+  }
+}
+
 async function signCookie(payload: string, secret: string): Promise<string> {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
@@ -395,6 +439,30 @@ export default {
       'Expires': '0',
       ...securityHeaders,
     };
+
+    // Rate limiting checks
+    const windowSeconds = 60;
+    let rateLimitResult = null;
+    let rateLimitEndpoint = null;
+
+    if (path.startsWith('/proxy')) {
+      rateLimitEndpoint = '/proxy*';
+      rateLimitResult = await checkRateLimit(env, clientIP, rateLimitEndpoint, 30, windowSeconds);
+    } else if (path.startsWith('/api/auth/')) {
+      rateLimitEndpoint = '/api/auth/*';
+      rateLimitResult = await checkRateLimit(env, clientIP, rateLimitEndpoint, 10, windowSeconds);
+    } else if (path.startsWith('/api/')) {
+      rateLimitEndpoint = '/api/*';
+      rateLimitResult = await checkRateLimit(env, clientIP, rateLimitEndpoint, 60, windowSeconds);
+    }
+
+    if (rateLimitResult && !rateLimitResult.allowed) {
+      log.info(`[${timestamp}] 🚫 Rate limit exceeded for ${clientIP} on ${rateLimitEndpoint}`);
+      return Response.json(
+        { error: 'Rate limit exceeded', retryAfter: windowSeconds },
+        { status: 429, headers: securityHeaders }
+      );
+    }
 
     // Proxy endpoint for external resources (hardened)
     if (path.startsWith("/proxy")) {
