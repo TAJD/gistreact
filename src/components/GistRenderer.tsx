@@ -22,11 +22,14 @@ function ShareableLink({ shareId, gistId }: { shareId: string; gistId: string })
   const [currentShareId, setCurrentShareId] = useState(shareId)
   const [isUpdating, setIsUpdating] = useState(false)
   const [error, setError] = useState('')
-  
+  const [copied, setCopied] = useState(false)
+
   const shareUrl = `${window.location.origin}/share/${currentShareId}`
-  
+
   const copyToClipboard = () => {
     navigator.clipboard.writeText(shareUrl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
   
   const updateCustomName = async () => {
@@ -88,12 +91,13 @@ function ShareableLink({ shareId, gistId }: { shareId: string; gistId: string })
       <div className="share-info">
         <span className="share-label">🔗 Shareable link:</span>
         <code className="share-url">{shareUrl}</code>
-        <button 
+        <button
           onClick={copyToClipboard}
           className="copy-btn"
           title="Copy to clipboard"
+          aria-label="Copy share link"
         >
-          📋
+          {copied ? '✓' : '📋'}
         </button>
         <button 
           onClick={() => setIsEditing(!isEditing)}
@@ -155,7 +159,6 @@ export function GistRenderer({ gistId }: GistRendererProps) {
         setLoading(true)
         setError(null)
         
-        console.log(`🔍 Fetching gist: ${gistId}`)
         // Check if this is a share ID or direct gist ID
         const isShareId = window.location.pathname.startsWith('/share/')
         const fetchUrl = isShareId ? `/share/${gistId}` : `/${gistId}`
@@ -172,15 +175,8 @@ export function GistRenderer({ gistId }: GistRendererProps) {
         }
 
         const data: GistResponse = await response.json()
-        console.log(`✅ Gist data loaded:`, {
-          filename: data.filename,
-          gistId: data.gistId,
-          contentLength: data.content?.length,
-          contentPreview: data.content?.substring(0, 100)
-        })
         setComponent(data)
       } catch (err) {
-        console.error(`❌ Error loading gist ${gistId}:`, err)
         setError(err instanceof Error ? err.message : 'Unknown error occurred')
       } finally {
         setLoading(false)
@@ -292,13 +288,11 @@ export function GistRenderer({ gistId }: GistRendererProps) {
     }
   }
   
-  console.log(`🔍 Component name detection:`, { componentName, filename: component.filename });
   
   // Check if the component has a default export, if not, add one
   let processedContent = component.content;
   
   if (!component.content.includes('export default')) {
-    console.log(`⚠️  No default export found, adding one for component: ${componentName}`);
     processedContent = `${component.content}\n\nexport default ${componentName};`;
   }
   
@@ -313,12 +307,19 @@ export default function App() {
 }`
   }
   
-  console.log(`📄 Processed content preview:`, processedContent.substring(0, 200) + '...');
-  console.log(`🔍 Has default export:`, processedContent.includes('export default'));
 
-  console.log(`🎯 Detected component: ${componentName}`)
-  console.log(`📄 Content length:`, component.content?.length)
-  console.log(`📂 Files:`, Object.keys(files))
+  const isShareRoute = window.location.pathname.startsWith('/share/')
+  const githubGistUrl = !isShareRoute && gistId.length >= 32
+    ? `https://gist.github.com/${gistId}`
+    : null
+
+  const handleRefresh = () => {
+    setLoading(true)
+    setError(null)
+    setComponent(null)
+    // Re-trigger the effect by forcing a state change
+    window.location.reload()
+  }
 
   return (
     <div className="gist-renderer">
@@ -326,7 +327,14 @@ export default function App() {
         <button onClick={goHome} className="home-btn">← Home</button>
         <div className="gist-info">
           <span className="filename">{component.filename}</span>
-          <span className="gist-id">Gist: {gistId}</span>
+          {githubGistUrl && (
+            <a href={githubGistUrl} target="_blank" rel="noopener noreferrer" className="github-link" aria-label="View on GitHub">
+              GitHub ↗
+            </a>
+          )}
+          <button onClick={handleRefresh} className="refresh-btn" aria-label="Refresh component" title="Re-fetch from GitHub">
+            ↻
+          </button>
         </div>
       </nav>
       {component.fromCache && (
