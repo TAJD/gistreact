@@ -5,15 +5,15 @@ interface GitHubUser {
 }
 
 function createLogger(request?: Request) {
-  const requestId = request?.headers.get('cf-ray') || crypto.randomUUID().slice(0, 8)
+  const requestId = request?.headers.get('cf-ray') || 'no-req'
   return {
     info: (msg: string): void => { console.log(JSON.stringify({ level: 'info', requestId, msg, ts: Date.now() })) },
     error: (msg: string, err?: unknown): void => { console.error(JSON.stringify({ level: 'error', requestId, msg, err: String(err), ts: Date.now() })) },
   }
 }
 
-// Default logger for module-level functions (no request context)
-const log = createLogger()
+// Module-level logger (no request context, no async operations)
+const log = { info: (_msg: string): void => {}, error: (_msg: string, _err?: unknown): void => {} }
 
 async function checkRateLimit(
   env: Env,
@@ -419,6 +419,7 @@ async function getPopularGists(env: Env, limit: number = 10) {
 
 export default {
   async fetch(request, env) {
+    const log = createLogger(request);
     const requestStart = new Date();
     const timestamp = requestStart.toISOString();
     const url = new URL(request.url);
