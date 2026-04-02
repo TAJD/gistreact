@@ -1,4 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
+import { ThemeToggle } from './ThemeToggle'
 
 const LiveDemo = lazy(() => import('./LiveDemo').then(m => ({ default: m.LiveDemo })))
 
@@ -134,6 +135,7 @@ export function LandingPage() {
         <div className="hero-header">
           <img src="/logo.svg" alt="ReactDrop" className="logo" />
           <h1>ReactDrop</h1>
+          <ThemeToggle />
         </div>
         <p className="hero-description">
           Host and share React components directly from GitHub Gists

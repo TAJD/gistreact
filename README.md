@@ -1,69 +1,52 @@
-# React + TypeScript + Vite
+# ReactDrop
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Host and share React components from GitHub Gists. Drop in a component, see it rendered live in a sandboxed environment.
 
-Currently, two official plugins are available:
+**Live:** [reactdrop.verdient.co.uk](https://reactdrop.verdient.co.uk)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Features
 
-## Expanding the ESLint configuration
+- Paste a GitHub Gist URL and get an instant shareable link
+- Component validator with 5 automated checks (syntax, imports, exports, size, allowlist)
+- Sandpack-based sandbox with Tailwind CSS and 30+ libraries
+- GitHub OAuth authentication
+- Split view: toggle code alongside preview
+- Custom shareable links with collision detection
+- Analytics: view counts, popular and recent components
+- Report abuse system
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Quick Start
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+pnpm install
+pnpm dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Requires Node.js 22+ and pnpm 10+.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Tech Stack
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- **Frontend:** React 19, TypeScript, Vite
+- **Backend:** Cloudflare Workers
+- **Database:** Cloudflare D1 (SQLite at edge)
+- **Sandbox:** Sandpack (CodeSandbox)
+- **Testing:** Vitest, Playwright, Miniflare
+
+## Testing
+
+```bash
+pnpm test:run          # Unit tests
+pnpm test:e2e          # E2E tests (Playwright)
+pnpm build             # Build verification
 ```
+
+## Documentation
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) - Technical architecture
+- [SECURITY.md](SECURITY.md) - Security policy
+- [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guide
+- [CLAUDE.md](CLAUDE.md) - AI assistant context
+
+## License
+
+MIT

@@ -97,7 +97,13 @@ jobs:
       run: |
         npx @axe-core/cli http://localhost:5173 --exit || true
       continue-on-error: true
-    
+
+    - name: Lighthouse CI
+      run: |
+        npm install -g @lhci/cli
+        lhci autorun --collect.url=http://localhost:5173 --collect.url=http://localhost:5173/validate --assert.preset=lighthouse:recommended --assert.assertions.categories:performance=off || true
+      continue-on-error: true
+
     - uses: actions/upload-artifact@v4
       if: always()
       with:

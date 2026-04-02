@@ -13,6 +13,14 @@ export default defineConfig({
     })
   ],
   build: {
-    outDir: 'dist/client'
+    outDir: 'dist/client',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'sandpack': ['@codesandbox/sandpack-react'],
+          'react-vendor': ['react', 'react-dom'],
+        },
+      },
+    },
   }
 })

@@ -4,10 +4,16 @@ interface GitHubUser {
   id: number;
 }
 
-const log = {
-  info: (_msg: string): void => {},
-  error: (_msg: string, _err?: unknown): void => {},
+function createLogger(request?: Request) {
+  const requestId = request?.headers.get('cf-ray') || crypto.randomUUID().slice(0, 8)
+  return {
+    info: (msg: string): void => { console.log(JSON.stringify({ level: 'info', requestId, msg, ts: Date.now() })) },
+    error: (msg: string, err?: unknown): void => { console.error(JSON.stringify({ level: 'error', requestId, msg, err: String(err), ts: Date.now() })) },
+  }
 }
+
+// Default logger for module-level functions (no request context)
+const log = createLogger()
 
 async function checkRateLimit(
   env: Env,

@@ -153,6 +153,7 @@ export function GistRenderer({ gistId }: GistRendererProps) {
   const [isHeaderVisible, setIsHeaderVisible] = useState(true)
   const [showCode, setShowCode] = useState(false)
   const [reported, setReported] = useState(false)
+  const [showEmbed, setShowEmbed] = useState(false)
   const lastScrollY = useRef(0)
   const headerRef = useRef<HTMLElement>(null)
 
@@ -320,9 +321,39 @@ export default function App() {
     setLoading(true)
     setError(null)
     setComponent(null)
-    // Re-trigger the effect by forcing a state change
     window.location.reload()
   }
+
+  const handleDownload = () => {
+    if (!component) return
+    const blob = new Blob([component.content], { type: 'text/typescript' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = component.filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const embedCode = `<iframe src="${window.location.origin}/share/${component?.shareId || gistId}" width="100%" height="500" frameborder="0"></iframe>`
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        if (component?.shareId) {
+          navigator.clipboard.writeText(`${window.location.origin}/share/${component.shareId}`)
+        }
+      }
+      if (e.key === 'Escape') {
+        setShowEmbed(false)
+        setShowCode(false)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [component?.shareId])
 
   return (
     <div className="gist-renderer">
@@ -345,6 +376,17 @@ export default function App() {
             title={showCode ? 'Hide code' : 'Show code'}
           >
             {showCode ? '⟨/⟩' : '⟨⟩'}
+          </button>
+          <button onClick={handleDownload} className="refresh-btn" aria-label="Download component" title="Download .tsx file">
+            ↓
+          </button>
+          <button
+            onClick={() => setShowEmbed(!showEmbed)}
+            className={`refresh-btn ${showEmbed ? 'active' : ''}`}
+            aria-label="Embed code"
+            title="Get embed code"
+          >
+            &lt;/&gt;
           </button>
           <button
             onClick={async () => {
@@ -369,6 +411,21 @@ export default function App() {
           </button>
         </div>
       </nav>
+      {showEmbed && (
+        <div className="embed-popover">
+          <div className="embed-content">
+            <span className="embed-label">Embed this component:</span>
+            <code className="embed-code">{embedCode}</code>
+            <button
+              className="copy-btn"
+              onClick={() => navigator.clipboard.writeText(embedCode)}
+              aria-label="Copy embed code"
+            >
+              📋 Copy
+            </button>
+          </div>
+        </div>
+      )}
       {component.description && (
         <div className="component-description">
           {component.description}

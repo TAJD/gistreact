@@ -1,0 +1,14 @@
+---
+name: Feature Request
+about: Suggest a feature for ReactDrop
+labels: enhancement
+---
+
+**Problem**
+What problem does this solve?
+
+**Proposed solution**
+Describe your idea.
+
+**Alternatives considered**
+Any other approaches you thought about.

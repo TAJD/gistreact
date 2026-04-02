@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { Sandpack } from '@codesandbox/sandpack-react'
 import { validateComponent, type ValidationResult } from '../utils/componentValidator'
 import { SANDPACK_DEPENDENCIES, SANDPACK_EXTERNAL_RESOURCES } from '../config/sandpackDependencies'
+import { ThemeToggle } from './ThemeToggle'
 
 interface GitHubUser {
   login: string
@@ -55,6 +56,7 @@ export function ValidatorPage() {
   const [code, setCode] = useState('')
   const [validation, setValidation] = useState<ValidationResult | null>(null)
   const [showPreview, setShowPreview] = useState(false)
+  const [previewWidth, setPreviewWidth] = useState<'100%' | '768px' | '375px'>('100%')
   const [user, setUser] = useState<GitHubUser | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null)
@@ -113,6 +115,7 @@ export default function App() {
           <h1 className="validator-title">Component Validator</h1>
         </div>
         <div className="nav-right">
+          <ThemeToggle />
           {authLoading ? null : user ? (
             <div className="auth-user">
               <img src={user.avatar_url} alt={user.login} className="auth-avatar" />
@@ -188,8 +191,33 @@ export default function App() {
 
         {showPreview && sandpackFiles && (
           <section className="preview-section">
-            <h2>Live Preview</h2>
-            <div className="preview-container">
+            <div className="preview-header">
+              <h2>Live Preview</h2>
+              <div className="viewport-toggles">
+                <button
+                  className={`viewport-btn ${previewWidth === '100%' ? 'active' : ''}`}
+                  onClick={() => setPreviewWidth('100%')}
+                  title="Desktop"
+                >
+                  Desktop
+                </button>
+                <button
+                  className={`viewport-btn ${previewWidth === '768px' ? 'active' : ''}`}
+                  onClick={() => setPreviewWidth('768px')}
+                  title="Tablet"
+                >
+                  Tablet
+                </button>
+                <button
+                  className={`viewport-btn ${previewWidth === '375px' ? 'active' : ''}`}
+                  onClick={() => setPreviewWidth('375px')}
+                  title="Mobile"
+                >
+                  Mobile
+                </button>
+              </div>
+            </div>
+            <div className="preview-container" style={{ maxWidth: previewWidth, margin: '0 auto' }}>
               <Sandpack
                 template="react-ts"
                 files={sandpackFiles}
