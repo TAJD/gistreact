@@ -3,6 +3,79 @@ import { ThemeToggle } from './ThemeToggle'
 
 const LiveDemo = lazy(() => import('./LiveDemo').then(m => ({ default: m.LiveDemo })))
 
+interface SearchResult {
+  share_id: string
+  filename: string
+  description: string | null
+  source: string | null
+  uploaded_by: string | null
+  view_count: number | null
+}
+
+function ComponentSearch() {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<SearchResult[]>([])
+  const [searching, setSearching] = useState(false)
+  const debounceRef = useState<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleSearch = (q: string) => {
+    setQuery(q)
+    if (debounceRef[0]) clearTimeout(debounceRef[0])
+    if (q.length < 2) {
+      setResults([])
+      return
+    }
+    debounceRef[0] = setTimeout(async () => {
+      setSearching(true)
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`)
+        if (res.ok) {
+          const data = await res.json() as SearchResult[]
+          setResults(data)
+        }
+      } catch { /* silent */ }
+      finally { setSearching(false) }
+    }, 300)
+  }
+
+  const handleResultClick = (shareId: string) => {
+    window.history.pushState(null, '', `/share/${shareId}`)
+    window.dispatchEvent(new PopStateEvent('popstate'))
+  }
+
+  return (
+    <div className="component-search">
+      <h3>Search Components</h3>
+      <input
+        type="text"
+        value={query}
+        onChange={(e) => handleSearch(e.target.value)}
+        placeholder="Search by name or description..."
+        className="search-input"
+        aria-label="Search components"
+      />
+      {searching && <div className="search-status">Searching...</div>}
+      {results.length > 0 && (
+        <div className="search-results">
+          {results.map((r) => (
+            <div key={r.share_id} className="search-result" onClick={() => handleResultClick(r.share_id)}>
+              <span className="search-filename">{r.filename}</span>
+              {r.description && <span className="search-desc">{r.description}</span>}
+              <span className="search-meta">
+                {r.uploaded_by ? `by ${r.uploaded_by}` : ''}
+                {r.view_count ? ` · ${r.view_count} views` : ''}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      {query.length >= 2 && !searching && results.length === 0 && (
+        <div className="search-status">No components found</div>
+      )}
+    </div>
+  )
+}
+
 function GistUrlInput() {
   const [url, setUrl] = useState('')
   const [error, setError] = useState('')
@@ -325,6 +398,8 @@ export function LandingPage() {
             </div>
           </details>
         </section>
+
+        <ComponentSearch />
 
         <GistUrlInput />
 

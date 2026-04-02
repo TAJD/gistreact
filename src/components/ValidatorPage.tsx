@@ -58,6 +58,8 @@ export function ValidatorPage() {
   const [showPreview, setShowPreview] = useState(false)
   const [previewWidth, setPreviewWidth] = useState<'100%' | '768px' | '375px'>('100%')
   const [user, setUser] = useState<GitHubUser | null>(null)
+  const [deploying, setDeploying] = useState(false)
+  const [deployResult, setDeployResult] = useState<{ shareUrl: string; shareId: string } | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null)
 
@@ -93,6 +95,32 @@ export function ValidatorPage() {
   const goHome = () => {
     window.history.pushState(null, '', '/')
     window.dispatchEvent(new PopStateEvent('popstate'))
+  }
+
+  const handleDeploy = async () => {
+    if (!validation?.isDeployable || !validation.componentName || !user) return
+    setDeploying(true)
+    try {
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: validation.processedCode || code,
+          filename: `${validation.componentName}.tsx`,
+          description: `Uploaded by ${user.login} via ReactDrop validator`,
+        }),
+      })
+      const data = await response.json() as { success?: boolean; shareUrl?: string; shareId?: string; error?: string }
+      if (data.success && data.shareUrl && data.shareId) {
+        setDeployResult({ shareUrl: data.shareUrl, shareId: data.shareId })
+      } else {
+        alert(data.error || 'Deploy failed')
+      }
+    } catch {
+      alert('Deploy failed - check your connection')
+    } finally {
+      setDeploying(false)
+    }
   }
 
   const sandpackFiles = validation?.processedCode && validation.componentName
@@ -171,13 +199,43 @@ export default function App() {
                   <div className="summary-pass" role="status">
                     ✓ Component is deployable on ReactDrop
                   </div>
-                  {!showPreview && (
-                    <button
-                      className="preview-btn"
-                      onClick={() => setShowPreview(true)}
-                    >
-                      Preview Component
-                    </button>
+                  <div className="deploy-actions">
+                    {!showPreview && (
+                      <button
+                        className="preview-btn"
+                        onClick={() => setShowPreview(true)}
+                      >
+                        Preview Component
+                      </button>
+                    )}
+                    {user && !deployResult && (
+                      <button
+                        className="deploy-btn"
+                        onClick={handleDeploy}
+                        disabled={deploying}
+                      >
+                        {deploying ? 'Deploying...' : 'Deploy to ReactDrop'}
+                      </button>
+                    )}
+                    {!user && (
+                      <a href="/api/auth/login" className="deploy-btn auth-required">
+                        Sign in to deploy
+                      </a>
+                    )}
+                  </div>
+                  {deployResult && (
+                    <div className="deploy-result">
+                      <span>Deployed!</span>
+                      <a href={deployResult.shareUrl} className="deploy-link">
+                        {deployResult.shareUrl}
+                      </a>
+                      <button
+                        className="copy-btn"
+                        onClick={() => navigator.clipboard.writeText(deployResult.shareUrl)}
+                      >
+                        📋
+                      </button>
+                    </div>
                   )}
                 </>
               ) : (
