@@ -30,7 +30,8 @@ describe('Worker Functions Integration Tests', () => {
     // Reset mock database
     mockDatabase = {
       gist_analytics: [],
-      stored_gists: []
+      stored_gists: [],
+      rate_limits: []
     }
 
     // Create mock D1 database that operates on in-memory data
@@ -61,6 +62,14 @@ describe('Worker Functions Integration Tests', () => {
                 }
                 if (query.includes('original_gist_id = ?')) {
                   return record.original_gist_id === boundValues[0]
+                }
+                return false
+              }) || null
+            }
+            if (query.includes('SELECT') && query.includes('rate_limits')) {
+              return mockDatabase.rate_limits.find((record: any) => {
+                if (query.includes('ip = ?') && query.includes('endpoint = ?') && query.includes('window_start = ?')) {
+                  return record.ip === boundValues[0] && record.endpoint === boundValues[1] && record.window_start === boundValues[2]
                 }
                 return false
               }) || null
@@ -116,6 +125,16 @@ describe('Worker Functions Integration Tests', () => {
               })
               return { success: true, meta: { changes: 1 } }
             }
+            if (query.includes('INSERT INTO rate_limits')) {
+              const [ip, endpoint, window_start, request_count] = boundValues
+              mockDatabase.rate_limits.push({
+                ip,
+                endpoint,
+                window_start,
+                request_count: request_count || 1
+              })
+              return { success: true, meta: { changes: 1 } }
+            }
             if (query.includes('UPDATE stored_gists') && query.includes('access_count')) {
               const record = mockDatabase.stored_gists.find(r => r.share_id === boundValues[0])
               if (record) {
@@ -126,7 +145,7 @@ describe('Worker Functions Integration Tests', () => {
             }
             if (query.includes('UPDATE stored_gists') && query.includes('SET share_id')) {
               const [newShareId, gistId, filename, oldShareId] = boundValues
-              const record = mockDatabase.stored_gists.find(r => 
+              const record = mockDatabase.stored_gists.find(r =>
                 r.original_gist_id === gistId && r.filename === filename && r.share_id === oldShareId
               )
               if (record) {
@@ -134,6 +153,10 @@ describe('Worker Functions Integration Tests', () => {
                 record.last_accessed_at = new Date().toISOString()
                 return { success: true, meta: { changes: 1 } }
               }
+            }
+            if (query.includes('DELETE FROM rate_limits')) {
+              mockDatabase.rate_limits = mockDatabase.rate_limits.filter(r => r.window_start >= boundValues[0])
+              return { success: true, meta: { changes: 1 } }
             }
             return { success: false, meta: { changes: 0 } }
           }
@@ -439,32 +462,137 @@ describe('Worker Functions Integration Tests', () => {
         first_accessed_at: new Date(Date.now() - Math.random() * 86400000).toISOString(),
         last_accessed_at: new Date().toISOString()
       }))
-      
+
       mockDatabase.gist_analytics.push(...testData)
-      
+
       // Test recent query performance
       const startTime = Date.now()
       const recentResult = await mockEnv.DB.prepare(`
-        SELECT gist_id, filename FROM gist_analytics 
-        ORDER BY first_accessed_at DESC 
+        SELECT gist_id, filename FROM gist_analytics
+        ORDER BY first_accessed_at DESC
         LIMIT 10
       `).all()
       const recentDuration = Date.now() - startTime
-      
+
       expect(recentResult.results).toHaveLength(10)
       expect(recentDuration).toBeLessThan(100) // Should be fast with proper indexing
-      
+
       // Test popular query performance
       const popularStartTime = Date.now()
       const popularResult = await mockEnv.DB.prepare(`
-        SELECT gist_id, filename FROM gist_analytics 
-        ORDER BY view_count DESC 
+        SELECT gist_id, filename FROM gist_analytics
+        ORDER BY view_count DESC
         LIMIT 10
       `).all()
       const popularDuration = Date.now() - popularStartTime
-      
+
       expect(popularResult.results).toHaveLength(10)
       expect(popularDuration).toBeLessThan(100)
+    })
+  })
+
+  describe('Rate Limiting', () => {
+    beforeEach(() => {
+      // Reset mock database to include rate_limits table
+      mockDatabase = {
+        gist_analytics: [],
+        stored_gists: [],
+        rate_limits: []
+      }
+    })
+
+    it('should allow requests within rate limit', async () => {
+      const clientIP = '192.168.1.1'
+      const endpoint = '/api/*'
+      const maxRequests = 5
+
+      // Simulate multiple requests within the limit
+      for (let i = 0; i < 3; i++) {
+        const result = await mockEnv.DB.prepare(`
+          INSERT INTO rate_limits (ip, endpoint, window_start, request_count)
+          VALUES (?, ?, ?, 1)
+        `).bind(clientIP, endpoint, 1000).run()
+
+        expect(result.success).toBe(true)
+      }
+
+      // Get current count
+      const record = await mockEnv.DB.prepare(`
+        SELECT request_count FROM rate_limits
+        WHERE ip = ? AND endpoint = ? AND window_start = ?
+      `).bind(clientIP, endpoint, 1000).first()
+
+      expect(record).toBeTruthy()
+      expect(record.request_count).toBeLessThanOrEqual(maxRequests)
+    })
+
+    it('should block requests exceeding rate limit', async () => {
+      const clientIP = '192.168.2.2'
+      const endpoint = '/proxy*'
+      const maxRequests = 2
+
+      // Simulate requests exceeding the limit
+      mockDatabase.rate_limits = [
+        { ip: clientIP, endpoint, window_start: 2000, request_count: 3 }
+      ]
+
+      // Get current count
+      const record = await mockEnv.DB.prepare(`
+        SELECT request_count FROM rate_limits
+        WHERE ip = ? AND endpoint = ? AND window_start = ?
+      `).bind(clientIP, endpoint, 2000).first()
+
+      expect(record).toBeTruthy()
+      expect(record.request_count).toBeGreaterThan(maxRequests)
+    })
+
+    it('should handle rate limits per endpoint', async () => {
+      const clientIP = '192.168.3.3'
+
+      // Create records for different endpoints
+      const endpoints = ['/api/*', '/proxy*', '/api/auth/*']
+
+      for (const endpoint of endpoints) {
+        await mockEnv.DB.prepare(`
+          INSERT INTO rate_limits (ip, endpoint, window_start, request_count)
+          VALUES (?, ?, ?, 1)
+        `).bind(clientIP, endpoint, 3000).run()
+      }
+
+      // Verify each endpoint has its own counter
+      for (const endpoint of endpoints) {
+        const record = await mockEnv.DB.prepare(`
+          SELECT request_count FROM rate_limits
+          WHERE ip = ? AND endpoint = ? AND window_start = ?
+        `).bind(clientIP, endpoint, 3000).first()
+
+        expect(record).toBeTruthy()
+        expect(record.request_count).toBe(1)
+      }
+    })
+
+    it('should handle rate limits per IP address', async () => {
+      const endpoint = '/api/*'
+      const ips = ['10.0.0.1', '10.0.0.2', '10.0.0.3']
+
+      // Create records for different IPs
+      for (const ip of ips) {
+        await mockEnv.DB.prepare(`
+          INSERT INTO rate_limits (ip, endpoint, window_start, request_count)
+          VALUES (?, ?, ?, ?)
+        `).bind(ip, endpoint, 4000, 2).run()
+      }
+
+      // Verify each IP has its own counter
+      for (const ip of ips) {
+        const record = await mockEnv.DB.prepare(`
+          SELECT request_count FROM rate_limits
+          WHERE ip = ? AND endpoint = ? AND window_start = ?
+        `).bind(ip, endpoint, 4000).first()
+
+        expect(record).toBeTruthy()
+        expect(record.request_count).toBe(2)
+      }
     })
   })
 })

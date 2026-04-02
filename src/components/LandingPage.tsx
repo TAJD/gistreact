@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
+
+const LiveDemo = lazy(() => import('./LiveDemo').then(m => ({ default: m.LiveDemo })))
 
 function GistUrlInput() {
   const [url, setUrl] = useState('')
@@ -118,6 +120,9 @@ export function LandingPage() {
     return () => { controller.abort(); clearTimeout(timeout) }
   }, [])
 
+  const totalComponents = new Set([...recentGists, ...popularGists].map(g => g.gist_id)).size
+  const totalViews = [...recentGists, ...popularGists].reduce((sum, g) => sum + (g.view_count || 0), 0)
+
   const handleGistClick = (gistId: string) => {
     window.history.pushState(null, '', `/${gistId}`)
     window.dispatchEvent(new PopStateEvent('popstate'))
@@ -133,6 +138,18 @@ export function LandingPage() {
         <p className="hero-description">
           Host and share React components directly from GitHub Gists
         </p>
+        {totalComponents > 0 && (
+          <div className="hero-stats">
+            <div className="stat">
+              <span className="stat-number">{totalComponents}</span>
+              <span className="stat-label">Components hosted</span>
+            </div>
+            <div className="stat">
+              <span className="stat-number">{totalViews.toLocaleString()}</span>
+              <span className="stat-label">Total views</span>
+            </div>
+          </div>
+        )}
         <div className="hero-features">
           <div className="feature">
             <h3>🚀 Instant Hosting</h3>
@@ -189,6 +206,14 @@ export function LandingPage() {
           <div className="workflow-benefits">
             <h3>🎯 Perfect for:</h3>
             <p>Rapid prototyping, component showcases, portfolio pieces, and client demos</p>
+          </div>
+
+          <div className="demo-section">
+            <h3>See it in action</h3>
+            <p>This component is running live in a sandboxed iframe</p>
+            <Suspense fallback={<div className="loading">Loading demo...</div>}>
+              <LiveDemo />
+            </Suspense>
           </div>
 
           <div className="validate-cta">

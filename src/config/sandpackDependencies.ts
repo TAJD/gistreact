@@ -2,6 +2,11 @@
  * Shared Sandpack dependency configuration.
  * Used by both GistRenderer and ValidatorPage.
  * Keep in sync with ALLOWED_DEPENDENCIES in componentValidator.ts.
+ *
+ * Note: Uses 'latest' because Sandpack's CDN bundler resolves packages
+ * independently and may not have specific pinned versions cached.
+ * The security boundary is the import allowlist in componentValidator.ts,
+ * not the version pins here.
  */
 export const SANDPACK_DEPENDENCIES: Record<string, string> = {
   'lucide-react': 'latest',
@@ -54,6 +59,8 @@ export const SANDPACK_DEPENDENCIES: Record<string, string> = {
   'next-themes': 'latest',
 }
 
+// Note: SRI cannot be applied to externalResources - they load inside the Sandpack iframe
+// which has its own CSP. The proxy domain allowlist in worker/index.ts provides protection.
 export const SANDPACK_EXTERNAL_RESOURCES = [
   'https://cdn.tailwindcss.com',
 ]
