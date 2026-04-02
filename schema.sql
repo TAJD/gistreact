@@ -47,6 +47,37 @@ CREATE TABLE IF NOT EXISTS abuse_reports (
 CREATE INDEX idx_abuse_reports_gist_id ON abuse_reports(gist_id);
 CREATE INDEX idx_abuse_reports_status ON abuse_reports(status);
 
+-- Direct uploads
+ALTER TABLE stored_gists ADD COLUMN source TEXT DEFAULT 'gist';
+ALTER TABLE stored_gists ADD COLUMN uploaded_by TEXT;
+
+-- Full-text search
+CREATE VIRTUAL TABLE IF NOT EXISTS component_search USING fts5(
+    share_id,
+    filename,
+    description,
+    content='stored_gists',
+    content_rowid='id'
+);
+
+-- Triggers to keep FTS in sync
+CREATE TRIGGER IF NOT EXISTS stored_gists_ai AFTER INSERT ON stored_gists BEGIN
+    INSERT INTO component_search(rowid, share_id, filename, description)
+    VALUES (new.id, new.share_id, new.filename, new.description);
+END;
+
+CREATE TRIGGER IF NOT EXISTS stored_gists_ad AFTER DELETE ON stored_gists BEGIN
+    INSERT INTO component_search(component_search, rowid, share_id, filename, description)
+    VALUES ('delete', old.id, old.share_id, old.filename, old.description);
+END;
+
+CREATE TRIGGER IF NOT EXISTS stored_gists_au AFTER UPDATE ON stored_gists BEGIN
+    INSERT INTO component_search(component_search, rowid, share_id, filename, description)
+    VALUES ('delete', old.id, old.share_id, old.filename, old.description);
+    INSERT INTO component_search(rowid, share_id, filename, description)
+    VALUES (new.id, new.share_id, new.filename, new.description);
+END;
+
 -- Rate Limiting
 CREATE TABLE IF NOT EXISTS rate_limits (
     ip TEXT NOT NULL,

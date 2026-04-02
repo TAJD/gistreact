@@ -736,6 +736,120 @@ export default {
         }
       }
 
+      // Search components
+      if (path === "/api/search" && request.method === "GET") {
+        const query = url.searchParams.get('q');
+        if (!query || query.length < 2) {
+          return Response.json({ error: 'Query must be at least 2 characters' }, { status: 400, headers: corsHeaders });
+        }
+
+        try {
+          // Try FTS5 first, fall back to LIKE search
+          let results;
+          try {
+            results = await env.DB.prepare(`
+              SELECT s.share_id, s.filename, s.description, s.source, s.uploaded_by,
+                     a.view_count, a.first_accessed_at
+              FROM component_search cs
+              JOIN stored_gists s ON s.id = cs.rowid
+              LEFT JOIN gist_analytics a ON a.gist_id = s.original_gist_id AND a.filename = s.filename
+              WHERE component_search MATCH ?
+              ORDER BY rank
+              LIMIT 20
+            `).bind(query).all();
+          } catch {
+            // FTS table might not exist yet, fall back to LIKE
+            results = await env.DB.prepare(`
+              SELECT s.share_id, s.filename, s.description, s.source, s.uploaded_by,
+                     a.view_count, a.first_accessed_at
+              FROM stored_gists s
+              LEFT JOIN gist_analytics a ON a.gist_id = s.original_gist_id AND a.filename = s.filename
+              WHERE s.filename LIKE ? OR s.description LIKE ?
+              ORDER BY a.view_count DESC
+              LIMIT 20
+            `).bind(`%${query}%`, `%${query}%`).all();
+          }
+
+          return Response.json(results.results, { headers: corsHeaders });
+        } catch (error) {
+          log.error('Search failed', error);
+          return Response.json({ error: 'Search failed' }, { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // Direct upload (requires authentication)
+      if (path === "/api/upload" && request.method === "POST") {
+        // Verify auth cookie
+        const cookie = request.headers.get('cookie') || '';
+        const authMatch = cookie.match(/gh_user=([^;]+)/);
+        if (!authMatch) {
+          return Response.json({ error: 'Authentication required' }, { status: 401, headers: corsHeaders });
+        }
+
+        let username: string;
+        try {
+          const parts = authMatch[1].split('.');
+          if (parts.length !== 2) throw new Error('Invalid cookie');
+          const [payload, sig] = parts;
+          const expectedSig = await signCookie(payload, env.GITHUB_CLIENT_SECRET);
+          if (sig !== expectedSig) throw new Error('Invalid signature');
+          const user = JSON.parse(atob(payload));
+          username = user.login;
+        } catch {
+          return Response.json({ error: 'Invalid authentication' }, { status: 401, headers: corsHeaders });
+        }
+
+        try {
+          const body = await request.json() as { content?: string; filename?: string; description?: string };
+          const { content, filename, description } = body;
+
+          if (!content || !filename) {
+            return Response.json({ error: 'content and filename are required' }, { status: 400, headers: corsHeaders });
+          }
+
+          if (content.length > 50 * 1024) {
+            return Response.json({ error: 'Content exceeds 50KB limit' }, { status: 400, headers: corsHeaders });
+          }
+
+          if (!filename.endsWith('.tsx')) {
+            return Response.json({ error: 'Filename must end with .tsx' }, { status: 400, headers: corsHeaders });
+          }
+
+          // Generate share ID
+          let shareId = generateShareId();
+          let attempts = 0;
+          while (attempts < 10) {
+            const collision = await env.DB.prepare(
+              'SELECT share_id FROM stored_gists WHERE share_id = ?'
+            ).bind(shareId).first();
+            if (!collision) break;
+            shareId = generateShareId();
+            attempts++;
+          }
+
+          // Store as upload (no original gist ID)
+          const uploadGistId = `upload-${username}-${Date.now()}`;
+          await env.DB.prepare(`
+            INSERT INTO stored_gists (share_id, original_gist_id, filename, content, description, source, uploaded_by)
+            VALUES (?, ?, ?, ?, ?, 'upload', ?)
+          `).bind(shareId, uploadGistId, filename, content, description || '', username).run();
+
+          // Track analytics
+          await updateAnalytics(env, uploadGistId, filename, true);
+
+          log.info(`Uploaded component by ${username}: ${shareId}`);
+          return Response.json({
+            success: true,
+            shareId,
+            shareUrl: `${url.origin}/share/${shareId}`,
+            uploadedBy: username,
+          }, { headers: corsHeaders });
+        } catch (error) {
+          log.error('Upload failed', error);
+          return Response.json({ error: 'Upload failed' }, { status: 500, headers: corsHeaders });
+        }
+      }
+
       return Response.json({ error: 'API endpoint not found' }, { status: 404 });
     }
 
