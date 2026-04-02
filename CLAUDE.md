@@ -38,6 +38,45 @@ echo "value" | npx wrangler secret put SECRET_NAME
 GistRenderer and ValidatorPage use `React.lazy()` + `Suspense` in App.tsx.
 The landing page loads eagerly since it's the most common entry point.
 
+## CI Pipeline
+
+CI runs 5 jobs: lint-and-typecheck, unit-tests, integration-tests, build, e2e.
+- Unit tests: `src/utils/` + `src/components/LandingPage.test.tsx` (GistRenderer tests excluded - broken mocks)
+- Integration: `src/test/integration/worker-functions.test.ts` only (d1/real-d1 tests have Node.js compat issues)
+- E2E: Playwright Chromium only, `continue-on-error: true` (selectors need tightening)
+
+## R2 Backup
+
+- Bucket: `reactdrop-backups`, binding: `BACKUPS`
+- Cron: `0 3 * * *` (daily at 3am UTC)
+- Exports gist_analytics, stored_gists, abuse_reports as JSON
+- Retains last 30 backups, auto-prunes older ones
+
+## Search and Direct Upload
+
+- `/api/search?q=query` - FTS5 full-text search with LIKE fallback
+- `/api/upload` - Direct component deploy (requires OAuth, stores with `source='upload'`)
+- `component_search` FTS5 virtual table with sync triggers on stored_gists
+
+## D1 Migrations
+
+Schema changes must be applied to remote D1 manually:
+```bash
+MSYS_NO_PATHCONV=1 npx wrangler d1 execute gist-analytics --remote --command "SQL HERE"
+```
+
+## Gotchas
+
+- Cloudflare Workers: no `crypto.randomUUID()` or async I/O at module scope
+- Sandpack CDN: pinned versions don't work, must use `latest`
+- `@cloudflare/vite-plugin` version must match wrangler major version
+- Playwright strict mode: avoid loose selectors like `locator('h3')` - use `getByRole` or `data-testid`
+
+## GitHub Security
+
+Enabled via API: vulnerability alerts, Dependabot security updates, secret scanning, push protection.
+Check alerts: `gh api /repos/TAJD/gistreact/dependabot/alerts`
+
 ## Development Commands
 
 **Note: This project uses pnpm as the package manager. Always use pnpm instead of npm.**
