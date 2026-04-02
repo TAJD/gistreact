@@ -997,4 +997,51 @@ export default {
     
     return new Response('Not Found', { status: 404 });
   },
+
+  // Scheduled backup: runs daily via Cloudflare cron trigger
+  async scheduled(_controller: ScheduledController, env: Env, _ctx: ExecutionContext) {
+    const log = createLogger();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+    try {
+      // Export all tables as JSON
+      const tables = ['gist_analytics', 'stored_gists', 'abuse_reports'];
+      const backup: Record<string, unknown[]> = {};
+
+      for (const table of tables) {
+        try {
+          const result = await env.DB.prepare(`SELECT * FROM ${table}`).all();
+          backup[table] = result.results;
+        } catch {
+          backup[table] = [];
+        }
+      }
+
+      const backupJson = JSON.stringify(backup, null, 2);
+      const key = `backups/${timestamp}.json`;
+
+      await env.BACKUPS.put(key, backupJson, {
+        customMetadata: {
+          tables: tables.join(','),
+          recordCount: String(Object.values(backup).reduce((sum, t) => sum + t.length, 0)),
+          timestamp,
+        },
+      });
+
+      // Keep only last 30 backups
+      const list = await env.BACKUPS.list({ prefix: 'backups/' });
+      if (list.objects.length > 30) {
+        const toDelete = list.objects
+          .sort((a, b) => a.uploaded.getTime() - b.uploaded.getTime())
+          .slice(0, list.objects.length - 30);
+        for (const obj of toDelete) {
+          await env.BACKUPS.delete(obj.key);
+        }
+      }
+
+      log.info(`Backup complete: ${key} (${backupJson.length} bytes)`);
+    } catch (error) {
+      log.error('Backup failed', error);
+    }
+  },
 } satisfies ExportedHandler<Env>;

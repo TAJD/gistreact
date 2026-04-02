@@ -7,6 +7,7 @@ declare namespace Cloudflare {
 		GITHUB_TOKEN: string;
 		GITHUB_CLIENT_ID: string;
 		GITHUB_CLIENT_SECRET: string;
+		BACKUPS: R2Bucket;
 		ASSETS: any;
 	}
 }

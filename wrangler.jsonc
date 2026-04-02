@@ -47,12 +47,29 @@
 	"assets": { "directory": "./dist/client/client/", "binding": "ASSETS" },
 
 	/**
+	 * R2 Object Storage for database backups
+	 */
+	"r2_buckets": [
+		{
+			"bucket_name": "reactdrop-backups",
+			"binding": "BACKUPS"
+		}
+	],
+
+	/**
 	 * Custom Domains
 	 * https://developers.cloudflare.com/workers/configuration/routing/custom-domains/
 	 */
 	"routes": [
 		{ "pattern": "reactdrop.verdient.co.uk", "custom_domain": true }
 	],
+
+	/**
+	 * Cron Triggers - daily database backup at 3am UTC
+	 */
+	"triggers": {
+		"crons": ["0 3 * * *"]
+	},
 
 	/**
 	 * Service Bindings (communicate between multiple Workers)
