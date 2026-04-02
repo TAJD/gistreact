@@ -709,6 +709,26 @@ export default {
         }
       }
 
+      if (path === "/api/report" && request.method === "POST") {
+        try {
+          const body = await request.json() as { gistId?: string; shareId?: string; reason?: string };
+          const { gistId: reportGistId, shareId: reportShareId, reason } = body;
+
+          if (!reportGistId || !reason || reason.length < 3) {
+            return Response.json({ error: 'gistId and reason (min 3 chars) required' }, { status: 400, headers: corsHeaders });
+          }
+
+          await env.DB.prepare(`
+            INSERT INTO abuse_reports (gist_id, share_id, reporter_ip, reason)
+            VALUES (?, ?, ?, ?)
+          `).bind(reportGistId, reportShareId || null, clientIP, reason.substring(0, 500)).run();
+
+          return Response.json({ success: true }, { headers: corsHeaders });
+        } catch (error) {
+          return Response.json({ error: 'Failed to submit report' }, { status: 500, headers: corsHeaders });
+        }
+      }
+
       return Response.json({ error: 'API endpoint not found' }, { status: 404 });
     }
 
@@ -812,6 +832,7 @@ export default {
         return Response.json({
           content: component.content,
           filename: component.filename,
+          description: component.description || null,
           gistId: gistId,
           shareId: shareId,
           fromCache: component.fromCache || false

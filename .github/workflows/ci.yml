@@ -92,6 +92,11 @@ jobs:
     
     - name: Run Playwright tests
       run: pnpm test:e2e
+
+    - name: Run accessibility audit
+      run: |
+        npx @axe-core/cli http://localhost:5173 --exit || true
+      continue-on-error: true
     
     - uses: actions/upload-artifact@v4
       if: always()
