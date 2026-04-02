@@ -33,6 +33,20 @@ CREATE TABLE IF NOT EXISTS stored_gists (
 CREATE INDEX idx_stored_gists_share_id ON stored_gists(share_id);
 CREATE INDEX idx_stored_gists_original_gist_id ON stored_gists(original_gist_id);
 
+-- Abuse Reports
+CREATE TABLE IF NOT EXISTS abuse_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    gist_id TEXT NOT NULL,
+    share_id TEXT,
+    reporter_ip TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    reported_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    status TEXT DEFAULT 'pending'
+);
+
+CREATE INDEX idx_abuse_reports_gist_id ON abuse_reports(gist_id);
+CREATE INDEX idx_abuse_reports_status ON abuse_reports(status);
+
 -- Rate Limiting
 CREATE TABLE IF NOT EXISTS rate_limits (
     ip TEXT NOT NULL,

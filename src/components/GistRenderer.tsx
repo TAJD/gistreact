@@ -6,6 +6,7 @@ import { SANDPACK_DEPENDENCIES, SANDPACK_EXTERNAL_RESOURCES } from '../config/sa
 interface GistResponse {
   content: string
   filename: string
+  description?: string | null
   gistId: string
   shareId?: string
   isShared?: boolean
@@ -151,6 +152,7 @@ export function GistRenderer({ gistId }: GistRendererProps) {
   const [loading, setLoading] = useState(true)
   const [isHeaderVisible, setIsHeaderVisible] = useState(true)
   const [showCode, setShowCode] = useState(false)
+  const [reported, setReported] = useState(false)
   const lastScrollY = useRef(0)
   const headerRef = useRef<HTMLElement>(null)
 
@@ -344,8 +346,34 @@ export default function App() {
           >
             {showCode ? '⟨/⟩' : '⟨⟩'}
           </button>
+          <button
+            onClick={async () => {
+              if (reported) return
+              const reason = prompt('Why are you reporting this component?')
+              if (!reason || reason.length < 3) return
+              try {
+                await fetch('/api/report', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ gistId, shareId: component?.shareId, reason }),
+                })
+                setReported(true)
+              } catch { /* silent */ }
+            }}
+            className="report-btn"
+            aria-label="Report abuse"
+            title={reported ? 'Reported' : 'Report this component'}
+            disabled={reported}
+          >
+            {reported ? '✓ Reported' : '⚑'}
+          </button>
         </div>
       </nav>
+      {component.description && (
+        <div className="component-description">
+          {component.description}
+        </div>
+      )}
       {component.fromCache && (
         <div className="cache-notice">
           💾 Showing cached version (GitHub temporarily unavailable)
